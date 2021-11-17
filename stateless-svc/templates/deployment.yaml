@@ -42,7 +42,7 @@ spec:
           {{- toYaml . | nindent 10 }}
 {{- end }}
           ports:
-            - name: http
+            - name: {{ .Chart.Name }}
               containerPort: {{ .Values.container.port }}
               protocol: TCP
           livenessProbe:
