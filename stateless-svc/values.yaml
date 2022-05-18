@@ -57,23 +57,25 @@ securityContext:
 service:
   type: ClusterIP
   port: 80
+  portName: http
 
 container:
   port: 3000
 
 ingress:
   enabled: false
-  annotations:
-    {}
-    # kubernetes.io/ingress.class: nginx
-    # kubernetes.io/tls-acme: "true"
+  # annotations:
+  #   cert-manager.io/cluster-issuer: letsencrypt
   hosts:
-    - host: chart-example.local
-      paths: []
-  tls: []
-  #  - secretName: chart-example-tls
-  #    hosts:
-  #      - chart-example.local
+    - host: host.local
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+  # className: private
+  # tls:
+  #   - hosts:
+  #     - host.local
+  #     secretName: host.local
 
 resources:
   {}

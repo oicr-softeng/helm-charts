@@ -9,8 +9,8 @@ spec:
   type: {{ .Values.service.type }}
   ports:
     - port: {{ .Values.service.port }}
-      targetPort: {{ .Chart.Name }}
+      targetPort: {{ .Values.service.portName }}
       protocol: TCP
-      name: {{ .Chart.Name }}
+      name: {{ .Values.service.portName }}
   selector:
     {{- include "stateless-svc.selectorLabels" . | nindent 4 }}
