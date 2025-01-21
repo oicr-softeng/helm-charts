@@ -1,0 +1,8 @@
+apiVersion: hyperspike.io/v1
+kind: Valkey
+metadata:
+  name: {{ include "valkey-cluster.fullname" . }}-valkey-sample
+  labels:
+  {{- include "valkey-cluster.labels" . | nindent 4 }}
+spec:
+  volumePermissions: true
