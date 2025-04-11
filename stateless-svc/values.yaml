@@ -44,6 +44,15 @@ ingress:
   #      - chart-example.local
 
 # name = nameOverride  || Chart name
+
+mountSecrets: []
+  # - name: <secret name>
+  #   path: <mount path>
+  # - name: a
+  #   path: b
+  # - name: c
+  #   path: d
+
 nameOverride: ""
 
 nodeSelector: {}
