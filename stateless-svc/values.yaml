@@ -48,10 +48,6 @@ ingress:
 mountSecrets: []
   # - name: <secret name>
   #   path: <mount path>
-  # - name: a
-  #   path: b
-  # - name: c
-  #   path: d
 
 nameOverride: ""
 
