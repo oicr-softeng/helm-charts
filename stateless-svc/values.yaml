@@ -48,6 +48,7 @@ ingress:
 mountSecrets: []
   # - name: <secret name>
   #   path: <mount path>
+  #   defaultMode: 0644
 
 nameOverride: ""
 
