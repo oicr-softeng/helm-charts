@@ -1,15 +1,19 @@
 apiVersion: apps/v1
 kind: Deployment
+{{ $root := . }}
 metadata:
-  name: {{ include "stateless-svc.fullname" . }}
+  name: {{ include "stateless-svc.fullname" $root }}
   labels:
     {{- include "stateless-svc.labels" . | nindent 4 }}
     {{- include "stateless-svc.customLabels" . | nindent 4 }}
+
 spec:
   replicas: {{ .Values.replicaCount }}
+
   selector:
     matchLabels:
       {{- include "stateless-svc.selectorLabels" . | nindent 6 }}
+
   template:
     metadata:
       {{- with .Values.podAnnotations }}
@@ -20,34 +24,66 @@ spec:
       labels:
         {{- include "stateless-svc.selectorLabels" . | nindent 8 }}
         {{- include "stateless-svc.customLabels" . | nindent 8 }}
+
     spec:
-    {{- with .Values.imagePullSecrets }}
-      imagePullSecrets:
+      {{- with .Values.affinity }}
+      affinity:
         {{- toYaml . | nindent 8 }}
-    {{- end }}
-      serviceAccountName: {{ include "stateless-svc.serviceAccountName" . }}
-      securityContext:
-        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      {{- end }}
       containers:
-        - name: {{ .Chart.Name }}
-          securityContext:
-            {{- toYaml .Values.securityContext | nindent 12 }}
+        - name: {{ include "stateless-svc.fullname" . }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- if or .Values.command .Values.args .Values.entrypoint -}}
+          {{- /* If explicit command/args provided, prioritize them */}}
+            {{- if .Values.command }}
+          command: {{ toYaml .Values.command | nindent 12 }}
+            {{- end }}
+
+            {{- if and .Values.args (not .Values.entrypoint) }}
+          args: {{ toYaml .Values.args | nindent 12 }}
+            {{- end }}
+
+          {{- /* Otherwise, if entrypoint provided, split into command+args */}}
+            {{- if and (not .Values.command) (not .Values.args) .Values.entrypoint }}
+            {{- $entrypoint := .Values.entrypoint }}
+              {{- if gt (len $entrypoint) 0 }}
+          command: {{ toYaml (list (index $entrypoint 0)) | nindent 12 }}
+              {{- end }}
+
+              {{- if or (gt (len $entrypoint) 1) .Values.cmd }}
+              {{- $entrypointArgs := list }}
+                {{- if gt (len $entrypoint) 1 }}
+                  {{- $entrypointArgs = slice $entrypoint 1 (len $entrypoint) }}
+                {{- end }}
+
+                {{- if .Values.cmd }}
+                  {{- $entrypointArgs = concat $entrypointArgs .Values.cmd }}
+                {{- end }}
+          args: {{ toYaml (slice $entrypoint 1 (len $entrypoint)) | nindent 12 }}
+              {{- end }}
+            {{- end }}
+          {{- end }}
+
+          {{- if or .Values.extraEnv .Values.extraEnvYaml }}
           env:
-{{- if .Values.extraEnv }}
-  {{- range $key, $value := .Values.extraEnv }}
-          - name: {{ $key }}
-            value: {{ $value | quote }}
-  {{- end }}
-{{- end }}
-{{- with .Values.extraEnvYaml }}
-          {{- toYaml . | nindent 10 }}
-{{- end }}
+            {{- if .Values.extraEnv }}
+              {{- range $key, $value := .Values.extraEnv }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+              {{- end }}
+            {{- end }}
+
+            {{- with .Values.extraEnvYaml }}
+              {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- end }}
+
           ports:
             - name: http
               containerPort: {{ .Values.container.port }}
               protocol: TCP
+
           livenessProbe:
             httpGet:
               path: {{ .Values.probes.liveness.path }}
@@ -56,6 +92,7 @@ spec:
             timeoutSeconds: {{ .Values.probes.liveness.timeoutSeconds }}
             periodSeconds: {{ .Values.probes.liveness.periodSeconds }}
             failureThreshold: {{ .Values.probes.liveness.failureThreshold }}
+
           readinessProbe:
             httpGet:
               path: {{ .Values.probes.readiness.path }}
@@ -64,33 +101,44 @@ spec:
             timeoutSeconds: {{ .Values.probes.readiness.timeoutSeconds }}
             periodSeconds: {{ .Values.probes.readiness.periodSeconds }}
             failureThreshold: {{ .Values.probes.readiness.failureThreshold }}
+
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
-          volumeMounts:
-          {{- range .Values.mountSecrets }}
-            - name: {{ .name }}
-              mountPath: {{ .path }}
-          {{- end }}
+
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+
+          {{- /* volumeMounts: */ -}}
+          {{- include "stateless-svc.renderVolumeMounts"
+            (dict "root" $root "values" .Values) |
+            nindent 8
+          -}}
+
+          {{- /* sidecars: (and its volumeMounts) */ -}}
+          {{ include "stateless-svc.renderSidecars"
+            (dict "root" $root "values" .Values) |
+            nindent 8
+          -}}
+
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.affinity }}
-      affinity:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
+
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+
+      serviceAccountName: {{ include "stateless-svc.serviceAccountName" . }}
+
       {{- with .Values.tolerations }}
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      volumes:
-      {{- range .Values.mountSecrets }}
-        - name: {{ .name }}
-          secret:
-            secretName: {{ .name }}
-            defaultMode: {{ default "0644" .defaultMode }}
-      {{- end }}
 
-
-
-
+      {{- /* volumes: */ -}}
+      {{ include "stateless-svc.renderVolumes" (dict "root" $root "values" .Values) | nindent 4 }}
