@@ -88,10 +88,9 @@ Render container volumeMounts for given context (container or sidecar). Usage:
 
   {{- if eq (include "stateless-svc.hasSidecarMounts" $root) "true" -}}
     {{ "" }}
-  sidecars:
-  {{- range $si, $sidecarFromValues := $vals.sidecars }}
-    {{- $sidecar := dict -}}
-    {{- range $key, $value := $sidecarFromValues }}
+    {{- range $si, $sidecarFromValues := $vals.sidecars }}
+      {{- $sidecar := dict -}}
+      {{- range $key, $value := $sidecarFromValues }}
         {{- if and
           (ne $key "mountEmptyDirs")
           (ne $key "mountSecrets")
@@ -100,66 +99,134 @@ Render container volumeMounts for given context (container or sidecar). Usage:
         {{- end }}
       {{- end -}}
 
-    {{- $yaml := toYaml $sidecar | trim -}}
-    {{- $lines := splitList "\n" $yaml -}}
+      {{- $yaml := toYaml $sidecar | trim -}}
+      {{- $lines := splitList "\n" $yaml -}}
 
-    {{- if gt (len $lines) 0 }}
-    - {{ index $lines 0 }}
-        {{- range $si, $line := rest $lines }}
-      {{ $line | printf "%s" }}
+      {{- if gt (len $lines) 0 }}
+      - {{ index $lines 0 }}
+          {{- range $si, $line := rest $lines }}
+        {{ $line | printf "%s" }}
+          {{- end }}
+      {{- end -}}
+
+      {{- if or $sidecarFromValues.mountEmptyDirs $sidecarFromValues.mountSecrets }}
+        volumeMounts:
+        {{- range $sidecarEmptyDir := $sidecarFromValues.mountEmptyDirs -}}
+          {{- $emptyDirVolName := "" -}}
+          {{- $path := $sidecarEmptyDir.name | lower | replace "_" "-" -}}
+
+          {{- if $sidecarEmptyDir.shared }}
+            {{- $emptyDirVolName = $path -}}
+          {{- else }}
+            {{- $emptyDirVolName := (printf "%s-%s"
+              $sidecarFromValues.name
+              ($sidecarEmptyDir.name | lower | replace "_" "-")
+            ) -}}
+          {{- end -}}
+
+          {{- $mountPath := $sidecarEmptyDir.path | default (printf "/tmp/%s" $path) -}}
+
+          {{- include "renderMounts.volume" (list $emptyDirVolName $mountPath "") | nindent 8 -}}
         {{- end }}
-    {{- end -}}
 
-    {{- if or $sidecarFromValues.mountEmptyDirs $sidecarFromValues.mountSecrets }}
-      volumeMounts:
-      {{- range $sidecarEmptyDir := $sidecarFromValues.mountEmptyDirs -}}
+        {{- range $j, $sidecarSecretsVolume := $sidecarFromValues.mountSecrets }}
+          {{- $sidecarSecretsVolName := "" -}}
+          {{- $mountPath := "" -}}
+          {{- $readOnly := "" -}}
+          {{- $path := "" -}}
+
+          {{- if kindIs "string" $sidecarSecretsVolume }}
+            {{- $path = $sidecarSecretsVolume | lower | replace "_" "-" -}}
+            {{- $sidecarSecretsVolName = printf "%s-%s" $sidecarFromValues.name $path -}}
+            {{- $mountPath = printf "/tmp/%s" $path -}}
+          {{- else }}
+            {{- $path = $sidecarSecretsVolume.name | lower | replace "_" "-" -}}
+            {{- $sidecarSecretsVolName = (printf "%s-%s"
+              $sidecarFromValues.name
+              ($sidecarSecretsVolume.name | lower | replace "_" "-")
+            ) -}}
+            {{- $mountPath = ($sidecarSecretsVolume.path |
+              default (printf "/tmp/%s"
+                ($sidecarSecretsVolume.secret.secretName | lower | replace "_" "-") |
+                default $path
+              )
+            ) -}}
+            {{- if hasKey $sidecarSecretsVolume "readOnly" }}
+              {{- $readOnly = $sidecarSecretsVolume.readOnly -}}
+            {{- end }}
+          {{- end -}}
+
+          {{- include "renderMounts.volume" (list $sidecarSecretsVolName $mountPath $readOnly) | nindent 8 -}}
+        {{- end }}
+      {{- end }}
+      {{ "" }}
+    {{- end }}
+  {{- end }}
+{{- end }}
+
+
+{{- /* Render initContainers for copying files into emptyDir volumes */ -}}
+{{- define "stateless-svc.renderInitContainers" -}}
+  {{- $root := index . "root" -}}
+  {{- $vals := index . "values" -}}
+
+  {{- $needsInit := false -}}
+  {{- range $emptyDir := $vals.mountEmptyDirs }}
+    {{- if or $emptyDir.preserveOriginal $emptyDir.copyFromAltPath }}
+      {{- $needsInit = true -}}
+    {{- end }}
+  {{- end }}
+
+  {{- /* Render initContainers for copying files into emptyDir volumes */ -}}
+  {{- if $needsInit }}
+  {{- /* this conditional logic may change later if we wanted to allow
+       * initContainers for other purposes like DB migrations, theming, etc. */ -}}
+  initContainers:
+    {{- range $ei, $emptyDir := $vals.mountEmptyDirs -}}
+      {{- if or $emptyDir.preserveOriginal $emptyDir.copyFromAltPath }}
+        {{- $path := $emptyDir.name | lower | replace "_" "-" }}
+        {{- $mountPath := $emptyDir.path | default (printf "/tmp/%s" $path) }}
         {{- $emptyDirVolName := "" -}}
-        {{- $path := $sidecarEmptyDir.name | lower | replace "_" "-" -}}
 
-        {{- if $sidecarEmptyDir.shared }}
+        {{- if $emptyDir.shared }}
           {{- $emptyDirVolName = $path -}}
         {{- else }}
-          {{- $emptyDirVolName := (printf "%s-%s"
-            $sidecarFromValues.name
-            ($sidecarEmptyDir.name | lower | replace "_" "-")
-          ) -}}
-        {{- end -}}
-
-        {{- $mountPath := $sidecarEmptyDir.path | default (printf "/tmp/%s" $path) -}}
-
-        {{- include "renderMounts.volume" (list $emptyDirVolName $mountPath "") | nindent 8 -}}
-      {{- end }}
-
-      {{- range $j, $sidecarSecretsVolume := $sidecarFromValues.mountSecrets }}
-        {{- $sidecarSecretsVolName := "" -}}
-        {{- $mountPath := "" -}}
-        {{- $readOnly := "" -}}
-        {{- $path := "" -}}
-
-        {{- if kindIs "string" $sidecarSecretsVolume }}
-          {{- $path = $sidecarSecretsVolume | lower | replace "_" "-" -}}
-          {{- $sidecarSecretsVolName = printf "%s-%s" $sidecarFromValues.name $path -}}
-          {{- $mountPath = printf "/tmp/%s" $path -}}
-        {{- else }}
-          {{- $path = $sidecarSecretsVolume.name | lower | replace "_" "-" -}}
-          {{- $sidecarSecretsVolName = (printf "%s-%s"
-            $sidecarFromValues.name
-            ($sidecarSecretsVolume.name | lower | replace "_" "-")
-          ) -}}
-          {{- $mountPath = ($sidecarSecretsVolume.path |
-            default (printf "/tmp/%s"
-              ($sidecarSecretsVolume.secret.secretName | lower | replace "_" "-") |
-              default $path
-            )
-          ) -}}
-          {{- if hasKey $sidecarSecretsVolume "readOnly" }}
-            {{- $readOnly = $sidecarSecretsVolume.readOnly -}}
+          {{- $emptyDirVolName = (printf "%s-%s" (include "stateless-svc.fullname" $root) $path) -}}
+        {{- end }}
+      {{- "" }}
+    - name: copy-{{ $path }}
+      image: {{ $vals.image.repository }}:{{ $vals.image.tag | default $root.Chart.AppVersion }}
+      command: ['sh', '-c']
+      args:
+        - |
+          {{- if $emptyDir.preserveOriginal }}
+          if [ -d "{{ $mountPath }}" ]; then
+            echo "Copying original contents from {{ $mountPath }} to /init-data/..."
+            cp -r {{ $mountPath }}/. /init-data/
+            echo "Original contents copied successfully"
+          else
+            echo "Original directory {{ $mountPath }} does not exist, skipping"
+          fi
           {{- end }}
-        {{- end -}}
+          {{- if $emptyDir.copyFromAltPath }}
+          if [ -d "{{ $emptyDir.copyFromAltPath }}" ]; then
+            echo "Copying alternate contents from {{ $emptyDir.copyFromAltPath }} to /init-data/..."
+            cp -rp {{ $emptyDir.copyFromAltPath }}/. /init-data/ || cp -r {{ $emptyDir.copyFromAltPath }}/. /init-data/
+            echo "Alternate contents copied successfully (overwrites any duplicates)"
+          else
+            echo "Alternate directory {{ $emptyDir.copyFromAltPath }} does not exist, skipping"
+          fi
+          {{- end }}
+      volumeMounts:
+        - name: {{ $emptyDirVolName }}
+          mountPath: /init-data
 
-        {{- include "renderMounts.volume" (list $sidecarSecretsVolName $mountPath $readOnly) | nindent 8 -}}
+      {{- if $vals.securityContext }}
+      securityContext:
+        {{- toYaml $vals.securityContext | nindent 8 }}
       {{- end }}
-    {{- end }}
+
+      {{- end }}
     {{- end }}
   {{- end }}
 {{- end }}

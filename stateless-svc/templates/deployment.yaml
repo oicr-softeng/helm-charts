@@ -117,13 +117,19 @@ spec:
           {{- /* sidecars: (and its volumeMounts) */ -}}
           {{ include "stateless-svc.renderSidecars"
             (dict "root" $root "values" .Values) |
-            nindent 8
+            nindent 2
           -}}
 
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+
+      {{- /* initContainers */ -}}
+      {{- include "stateless-svc.renderInitContainers"
+        (dict "root" . "values" .Values) |
+        nindent 6
+      }}
 
       {{- with .Values.nodeSelector }}
       nodeSelector:
