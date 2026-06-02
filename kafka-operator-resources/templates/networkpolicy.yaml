@@ -1,0 +1,65 @@
+{{ if .Values.entityOperator.networkPolicy.create}}
+{{ $clusterName := include "kafka-operator-resources.fullname" . }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $clusterName }}-kafka-entity-operator-custom
+spec:
+  {{ if .Values.entityOperator.networkPolicy.ingress}}
+  ingress:
+    {{- with .Values.entityOperator.networkPolicy.ingress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- end }}
+  {{ if .Values.entityOperator.networkPolicy.egress}}
+  egress:
+    {{- with .Values.entityOperator.networkPolicy.egress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- end }}
+  podSelector:
+    matchLabels:
+      strimzi.io/cluster: {{ $clusterName }}
+      strimzi.io/kind: Kafka
+      strimzi.io/component-type: entity-operator
+  policyTypes:
+  {{ if .Values.entityOperator.networkPolicy.ingress}}
+  - Ingress
+  {{- end }}
+  {{ if .Values.entityOperator.networkPolicy.egress}}
+  - Egress
+  {{- end }}
+{{- end }}
+
+---
+{{ if .Values.kafkaBridge.networkPolicy.create}}
+{{ $clusterName := include "kafka-operator-resources.fullname" . }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $clusterName }}-kafka-bridge-custom
+spec:
+  {{ if .Values.kafkaBridge.networkPolicy.ingress}}
+  ingress:
+    {{- with .Values.kafkaBridge.networkPolicy.ingress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- end }}
+  {{ if .Values.kafkaBridge.networkPolicy.egress}}
+  egress:
+    {{- with .Values.kafkaBridge.networkPolicy.egress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- end }}
+  podSelector:
+    matchLabels:
+      strimzi.io/cluster: {{ $clusterName }}
+      strimzi.io/kind: KafkaBridge
+  policyTypes:
+  {{ if .Values.kafkaBridge.networkPolicy.ingress}}
+  - Ingress
+  {{- end }}
+  {{ if .Values.kafkaBridge.networkPolicy.egress}}
+  - Egress
+  {{- end }}
+{{- end }}

@@ -1,0 +1,12 @@
+{{ if ( .Values.kafkaBridge.enabled ) }}
+{{ $clusterName := include "kafka-operator-resources.fullname" . }}
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaBridge
+metadata:
+  name: {{ $clusterName }}
+spec:
+  bootstrapServers:  {{ $clusterName }}-kafka-bootstrap:9092
+  http:
+      port: 8080
+{{- end }}
+
