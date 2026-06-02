@@ -28,7 +28,7 @@ extraEnvYaml: []
 fullnameOverride: ""
 
 image:
-  repository: ghcr.io/overture-stack/non-existing
+  repository: ghcr.io/oicr-softeng/your-service
   tag: 0.1.0
   pullPolicy: IfNotPresent
 

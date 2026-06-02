@@ -1,0 +1,78 @@
+{{ $namespace := .Release.Namespace }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+
+metadata:
+  name: {{ include "stateless-svc.fullname" . }}
+  labels:
+    {{- include "stateless-svc.labels" . | nindent 4 }}
+    {{- include "stateless-svc.customLabels" . | nindent 4 }}
+  namespace: {{ $namespace }}
+
+spec:
+  policyTypes:
+    - Ingress
+    - Egress
+
+  podSelector:
+    matchLabels: {}
+
+  ingress:
+    - from:
+        - podSelector: {}
+
+    {{- range $rule := index .Values "ingress" "cidrs" }}
+    - from:
+        - ipBlock:
+            cidr: {{ index $rule.host }}
+      ports:
+        - port: {{ index $rule.port }}
+    {{- end }}
+
+    {{- range $rule := index .Values "ingress" "pods" }}
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ index $rule.namespace }}
+          podSelector:
+            matchLabels:
+              {{- range $k, $v := $rule.labels }}
+              {{- range $kk, $vv := $v }}
+              {{ $kk }}: {{ $vv }}
+              {{- end }}
+              {{- end }}
+      ports:
+        - port: {{ index $rule.port }}
+          protocol: {{ index $rule.protocol }}
+    {{- end }}
+
+  egress:
+
+    {{- range $rule := index .Values "egress" "pods" }}
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ index $rule.namespace }}
+          podSelector:
+            matchLabels:
+              {{- range $k, $v := $rule.labels }}
+              {{- range $kk, $vv := $v }}
+              {{ $kk }}: {{ $vv }}
+              {{- end }}
+              {{- end }}
+      ports:
+        - port: {{ index $rule.port }}
+          protocol: {{ index $rule.protocol }}
+    {{- end }}
+
+    {{- range $rule := index .Values "egress" "cidrs" }}
+    - to:
+        - ipBlock:
+            cidr: {{ index $rule.host }}
+      ports:
+        - port: {{ index $rule.port }}
+    {{- end }}
+
+    - to:
+        - podSelector: {}
