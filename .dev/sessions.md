@@ -1,12 +1,25 @@
 # Sessions
 
-## 2026-06-02 —
+## 2026-06-02 — Chart consolidation; git history import; lint fix
 
 **Done:**
 
+- Imported git history from source repos into softeng/helm-charts for all four charts using `git filter-repo` — each chart carries its full lineage from argo-charts, overture's helm-charts, or oicr-devops/helm-charts-sources
+- Added `stateless-svc` (from overture/helm-charts), `kafka-operator-resources` (from argo-charts), `valkey-cluster` (from oicr-devops/helm-charts-sources) — all with version bumps and improvements
+- Updated overture/helm-charts and oicr-devops/helm-charts-sources with redirect READMEs pointing to softeng
+- Fixed bugs in `stateless-svc` networkpolicy template (missing `egress` defaults caused lint error) and `kafka-operator-resources` (boolean `kafkaBridge.enabled` was a string, `replicas` was hardcoded)
+- All four charts published successfully to GHCR via Jenkins pipeline
+
 **Decisions:**
 
+- History import via `git filter-repo` + `--allow-unrelated-histories` merge is the established pattern for bringing charts in from other repos
+- Never bump version for a chart that failed to publish — if the pipeline aborted before the push, the version is clean to reuse
+- argo-charts redirect READMEs left as-is (per Jon's preference); devops' and overture copies replaced with softeng redirect for traceability. all artifacts left in place as well
+
 **Open threads:**
+
+- `helm unittest` chart unit testing — design and implementation deferred to next session
+- Per-chart tech-debt.md structure — revisit when charts have real entries
 
 ---
 

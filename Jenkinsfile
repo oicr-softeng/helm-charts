@@ -1,3 +1,6 @@
 @Library('jenkins-pipeline-library@multiversion') _
 
-pipelineSoftEngBuildHelmCharts()
+pipelineSoftEngBuildHelmCharts(
+  credentialsId: 'oicr-sweng-ghcr',
+  ociBase: 'oci://ghcr.io/oicr-softeng/helm-charts'
+)
