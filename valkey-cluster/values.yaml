@@ -1,0 +1,4 @@
+kubernetesClusterDomain: cluster.local
+spec:
+  nodes: "1"
+  volumePermissions: true
