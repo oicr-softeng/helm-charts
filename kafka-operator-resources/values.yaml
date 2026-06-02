@@ -1,3 +1,9 @@
+entityOperator:
+  networkPolicy:
+    create: false
+    egress: []
+    ingress: []
+
 Kafka:
   config:
     default.replication.factor: 3
@@ -10,12 +16,15 @@ Kafka:
     kafka:
       metadataVersion: 3.7-IV4
       version: 3.7.1
+
 kafkaBridge:
-  enabled: "false"
+  enabled: false
   networkPolicy:
     create: false
-    ingress: []
     egress: []
+    ingress: []
+
+kafkaMode: kraft
 
 KafkaNodePool:
   replicas: 3
@@ -41,12 +50,7 @@ KafkaNodePool:
     #   name: external
     #   port: 19092
     #   tls: false
-kafkaMode: kraft
-entityOperator:
-  networkPolicy:
-    create: false
-    ingress: []
-    egress: []
+
 networkPolicyPeers: []
   # - podSelector:
   #     matchLabels:

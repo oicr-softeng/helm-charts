@@ -6,7 +6,7 @@ metadata:
   labels:
     strimzi.io/cluster: {{ include "kafka-operator-resources.fullname" . }}
 spec:
-  replicas: 3
+  replicas: {{ .Values.KafkaNodePool.replicas }}
   roles:
     - controller
     - broker
