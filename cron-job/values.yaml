@@ -1,25 +1,45 @@
-schedule: '"0 0 * * *"'
-restartPolicy: Never
+# Forbid prevents overlapping runs if a job takes longer than its interval.
+# Set to Allow or Replace if overlap is acceptable for your workload.
+concurrencyPolicy: Forbid
 
-image:
-  # repository: ghcr.io/some-org/some-img
-  # tag: 1.0.0
-  pullPolicy: IfNotPresent
+customLabels: {}
 
-#imagePullSecrets: imagePullSecrets
+execute:
+  enable: false
+  spec:
+    args:
+    - infinity
+    command:
+    - sleep
 
-service:
-  internalPort: 8080
-
-extraEnv:
-  {}
-  # PROCESS_VAR: abc
+extraEnv: {} # PROCESS_VAR: abc
 extraEnvYaml: []
 # - name: ELASTIC_USER
 #   valueFrom:
 #     secretKeyRef:
 #       name: secret-name
 #       key: secret-key
+
+failedJobsHistoryLimit: 1
+
+# imagePullSecrets:
+#   - name: my-registry-secret
+
+image:
+  pullPolicy: IfNotPresent
+  # repository: ghcr.io/some-org/some-img
+  # tag: 1.0.0
+
+persistence:
+  volume:
+    attach: false
+    name: "volume_name"
+    path: "mount_path"
+
+restartPolicy: Never
+
+# The extra quotes are required — without them YAML parses the asterisks as anchors.
+schedule: '"0 0 * * *"'
 
 serviceAccount:
   # Specifies whether a service account should be created
@@ -28,19 +48,4 @@ serviceAccount:
   # If not set and create is true, a name is generated using the fullname template
   # name:
 
-customLabels: {}
-
-execute:
-  enable: false
-  spec:
-    command:
-    - sleep
-    args:
-    - infinity
-
-persistence:
-  volume:
-    attach: false
-    name: "volume_name"
-    path: "mount_path"
-
+successfulJobsHistoryLimit: 3
