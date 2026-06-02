@@ -16,7 +16,9 @@ To add or update a chart: push changes to `main` and Jenkins handles the rest.
 | Chart | Description |
 |-------|-------------|
 | `cron-job` | Generic chart to run a cron job |
+| `kafka-operator-resources` | Deploy Kafka resources for Strimzi Kafka operator |
 | `stateless-svc` | Generic chart for Kubernetes stateless services |
+| `valkey-cluster` | Deploy a Valkey cluster using the hyperspike.io operator |
 
 ## Using a chart
 
