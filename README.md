@@ -16,6 +16,7 @@ To add or update a chart: push changes to `main` and Jenkins handles the rest.
 | Chart | Description |
 |-------|-------------|
 | `cron-job` | Generic chart to run a cron job |
+| `stateless-svc` | Generic chart for Kubernetes stateless services |
 
 ## Using a chart
 

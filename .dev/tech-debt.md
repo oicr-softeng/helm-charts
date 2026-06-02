@@ -6,6 +6,14 @@
 | 1 | path/to/file | low/med/high | stale-ref / type / design / test / docs | Description | Fix description | yes / no / needs-context |
 -->
 
+## stateless-svc
+
+| # | File/Location | Severity | Kind | Issue | Proposed fix | Standalone |
+|---|--------------|----------|------|-------|-------------|------------|
+| 1 | `stateless-svc/Chart.yaml` | low | docs | Missing `icon` field — `helm lint` emits `[INFO] Chart.yaml: icon is recommended`. | Add `icon: <url>` | yes |
+
+---
+
 ## cron-job
 
 | # | File/Location | Severity | Kind | Issue | Proposed fix | Standalone |
