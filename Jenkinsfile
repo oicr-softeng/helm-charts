@@ -1,4 +1,4 @@
-@Library('jenkins-pipeline-library@multiversion') _
+@Library('jenkins-pipeline-library@master') _
 
 pipelineSoftEngBuildHelmCharts(
   credentialsId: 'oicr-sweng-ghcr',
