@@ -1,4 +1,4 @@
-{{- if .Values.ingress.enabled }}
+{{- if .Values.ingress.hosts }}
 Application URL:
 {{- range $host := .Values.ingress.hosts }}
   {{- range .paths }}

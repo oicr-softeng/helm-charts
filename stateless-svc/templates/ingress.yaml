@@ -1,4 +1,4 @@
-{{- if .Values.ingress.enabled -}}
+{{- if .Values.ingress.hosts -}}
 {{- $fullName := include "stateless-svc.fullname" . -}}
 {{- $svcPort := .Values.service.port -}}
 {{- $svcPortName := .Values.service.portName -}}

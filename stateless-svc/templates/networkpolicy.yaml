@@ -1,3 +1,6 @@
+{{- $hasIngress := or .Values.ingress.allowSameNamespace .Values.ingress.pods .Values.ingress.cidrs -}}
+{{- $hasEgress := or .Values.egress.allowSameNamespace .Values.egress.pods .Values.egress.cidrs -}}
+{{- if or $hasIngress $hasEgress -}}
 {{ $namespace := .Release.Namespace }}
 ---
 apiVersion: networking.k8s.io/v1
@@ -11,16 +14,25 @@ metadata:
   namespace: {{ $namespace }}
 
 spec:
+  # Targets only the pods belonging to this release.
+  podSelector:
+    matchLabels:
+      {{- include "stateless-svc.selectorLabels" . | nindent 6 }}
+
   policyTypes:
     - Ingress
+    {{- if $hasEgress }}
+    # Egress is only restricted when explicit egress rules are configured.
+    # Without any egress configuration, all outbound traffic is unrestricted.
     - Egress
-
-  podSelector:
-    matchLabels: {}
+    {{- end }}
 
   ingress:
+    {{- if .Values.ingress.allowSameNamespace }}
+    # Allow all pods within the same namespace to reach this service.
     - from:
         - podSelector: {}
+    {{- end }}
 
     {{- range $rule := index .Values "ingress" "cidrs" }}
     - from:
@@ -47,7 +59,13 @@ spec:
           protocol: {{ index $rule.protocol }}
     {{- end }}
 
+  {{- if $hasEgress }}
   egress:
+    {{- if .Values.egress.allowSameNamespace }}
+    # Allow this service to reach all pods within the same namespace.
+    - to:
+        - podSelector: {}
+    {{- end }}
 
     {{- range $rule := index .Values "egress" "pods" }}
     - to:
@@ -73,6 +91,5 @@ spec:
       ports:
         - port: {{ index $rule.port }}
     {{- end }}
-
-    - to:
-        - podSelector: {}
+  {{- end }}
+{{- end }}

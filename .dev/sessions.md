@@ -1,5 +1,14 @@
 # Sessions
 
+## 2026-06-24
+
+Overhauled stateless-svc NetworkPolicy and Ingress to remove explicit `enabled` flags and replace them with auto-detection from configured values.
+
+- `stateless-svc/templates/networkpolicy.yaml`: NP is now only rendered when ingress or egress rules are configured (`ingress.pods`, `ingress.cidrs`, `egress.pods`, `egress.cidrs`, or `allowSameNamespace`); `podSelector` fixed to target chart's own pods instead of all namespace pods; `Egress` only added to `policyTypes` when egress rules exist; added `allowSameNamespace` flag (default false) on both ingress and egress with explanatory comments
+- `stateless-svc/templates/ingress.yaml`: switched gate from `if .Values.ingress.enabled` to `if .Values.ingress.hosts`; Ingress auto-generates when hosts are configured
+- `stateless-svc/templates/NOTES.txt`: updated post-install URL display to match ingress gate change
+- `stateless-svc/values.yaml`: removed `ingress.enabled`; `ingress.hosts` defaults to `[]`; added `ingress.allowSameNamespace` and `egress.allowSameNamespace` with documentation
+
 ## 2026-06-02 — Chart consolidation; git history import; lint fix
 
 **Done:**
