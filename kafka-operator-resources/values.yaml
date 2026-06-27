@@ -14,8 +14,8 @@ Kafka:
   listeners: {}
   spec:
     kafka:
-      metadataVersion: 3.7-IV4
-      version: 3.7.1
+      metadataVersion: 4.2-IV1
+      version: 4.2.0
 
 kafkaBridge:
   enabled: false
@@ -31,7 +31,6 @@ KafkaNodePool:
   storage:
     deleteClaim: false
     size: 10Gi
-    type: persistent-claim
   template:
     kafkaContainer:
       securityContext:

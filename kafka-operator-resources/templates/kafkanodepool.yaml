@@ -1,5 +1,5 @@
 {{ if (eq .Values.kafkaMode "kraft") }}
-apiVersion: kafka.strimzi.io/v1beta2
+apiVersion: kafka.strimzi.io/v1
 kind: KafkaNodePool
 metadata:
   name: kafka-node
@@ -11,9 +11,13 @@ spec:
     - controller
     - broker
   storage:
-    type: {{ .Values.KafkaNodePool.storage.type }}
-    size: {{ .Values.KafkaNodePool.storage.size }}
-    deleteClaim: {{ .Values.KafkaNodePool.storage.deleteClaim }}
+    type: jbod
+    volumes:
+      - id: 0
+        type: persistent-claim
+        size: {{ .Values.KafkaNodePool.storage.size }}
+        deleteClaim: {{ .Values.KafkaNodePool.storage.deleteClaim }}
+        kraftMetadata: shared
   template:
     kafkaContainer:
       securityContext:

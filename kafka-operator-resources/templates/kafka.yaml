@@ -1,12 +1,9 @@
 {{ if (eq .Values.kafkaMode "kraft") }}
 {{ $clusterName := include "kafka-operator-resources.fullname" . }}
-apiVersion: kafka.strimzi.io/v1beta2
+apiVersion: kafka.strimzi.io/v1
 kind: Kafka
 metadata:
   name: {{ $clusterName }}
-  annotations:
-    strimzi.io/node-pools: enabled
-    strimzi.io/kraft: enabled
 spec:
   kafka:
     version: {{ .Values.Kafka.spec.kafka.version }}

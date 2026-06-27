@@ -1,6 +1,6 @@
 {{ if ( .Values.kafkaBridge.enabled ) }}
 {{ $clusterName := include "kafka-operator-resources.fullname" . }}
-apiVersion: kafka.strimzi.io/v1beta2
+apiVersion: kafka.strimzi.io/v1
 kind: KafkaBridge
 metadata:
   name: {{ $clusterName }}
