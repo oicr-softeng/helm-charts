@@ -6,6 +6,14 @@
 | 1 | path/to/file | low/med/high | stale-ref / type / design / test / docs | Description | Fix description | yes / no / needs-context |
 -->
 
+## .dev
+
+| # | File/Location | Severity | Kind | Issue | Proposed fix | Standalone |
+|---|--------------|----------|------|-------|-------------|------------|
+| 1 | `.dev/sessions.md` | low | docs | Flat `sessions.md` predates the per-session file convention (`sessions/YYYY-MM-DDTHHMMSS.md`). | Split each dated entry into its own file under `.dev/sessions/` using `T000000` placeholder timestamps per the migration exception; delete `sessions.md`. | yes |
+
+---
+
 ## stateless-svc
 
 | # | File/Location | Severity | Kind | Issue | Proposed fix | Standalone |

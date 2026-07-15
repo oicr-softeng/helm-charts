@@ -1,0 +1,45 @@
+{{- if and .Values.network.ingress .Values.network.gateway -}}
+{{- fail "network.ingress and network.gateway cannot both be configured" -}}
+{{- end -}}
+{{- if .Values.network.gateway -}}
+{{- $fullName := include "stateless-svc.fullname" . -}}
+{{- $gatewayName := .Values.network.gateway.name | default (printf "%s-gateway" .Release.Name) -}}
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ $fullName }}
+  labels:
+    {{- include "stateless-svc.labels" . | nindent 4 }}
+    {{- include "stateless-svc.customLabels" . | nindent 4 }}
+spec:
+  parentRefs:
+  - name: {{ $gatewayName }}
+    {{- if .Values.network.gateway.namespace }}
+    namespace: {{ .Values.network.gateway.namespace }}
+    {{- end }}
+    {{- if .Values.network.gateway.sectionName }}
+    sectionName: {{ .Values.network.gateway.sectionName }}
+    {{- end }}
+  {{- if .Values.network.gateway.hosts }}
+  hostnames:
+    {{- range .Values.network.gateway.hosts }}
+    - {{ . | quote }}
+    {{- end }}
+  {{- end }}
+  rules:
+    {{- range .Values.network.gateway.rules }}
+    - matches:
+        {{- range .matches }}
+        - path:
+            type: {{ .path.type }}
+            value: {{ .path.value }}
+        {{- end }}
+      {{- if .filters }}
+      filters:
+        {{- toYaml .filters | nindent 8 }}
+      {{- end }}
+      backendRefs:
+      - name: {{ $fullName }}
+        port: {{ $.Values.service.port | default $.Values.container.port }}
+    {{- end }}
+{{- end }}

@@ -15,21 +15,6 @@ createSecrets: {}
 
 customLabels: {}
 
-egress:
-  # Set to true to allow this service to reach all pods within the same namespace.
-  # When false (default), only the destinations in egress.pods and egress.cidrs are reachable.
-  # If no egress rules are configured at all, egress is unrestricted (Egress is omitted from policyTypes).
-  allowSameNamespace: false
-  cidrs: []
-  # - host: 10.0.0.0/24
-  #   port: 5432
-  pods: []
-  # - namespace: my-namespace
-  #   labels:
-  #     - app.kubernetes.io/name: my-app
-  #   port: 8080
-  #   protocol: TCP
-
 extraEnv: {} # PROCESS_VAR: abc
 
 extraEnvYaml: []
@@ -49,32 +34,6 @@ image:
 
 imagePullSecrets: []
 
-ingress:
-  # Set to true to allow all pods within the same namespace to reach this service on any port.
-  # When false (default), only the sources in ingress.pods and ingress.cidrs can reach it.
-  allowSameNamespace: false
-  # className: private
-  annotations: {}
-    # kubernetes.io/ingress.class: nginx
-    # kubernetes.io/tls-acme: "true"
-  cidrs: []
-  # - host: 10.0.0.0/24
-  #   port: 8080
-  hosts: []
-  # - host: chart-example.local
-  #   paths:
-  #   - path: /
-  #     pathType: ImplementationSpecific
-  pods: []
-  # - namespace: my-namespace
-  #   labels:
-  #     - app.kubernetes.io/name: my-app
-  #   port: 8080
-  #   protocol: TCP
-  # tls: []
-  #  - secretName: chart-example-tls
-  #    hosts:
-  #      - chart-example.local
 
 mountEmptyDirs: []
   # - name: <resource>-emptydir # <- automatic suffix
@@ -88,6 +47,85 @@ mountSecrets: []
   #   defaultMode: 0644
 
 nameOverride: ""
+
+network:
+  # Configure at most one routing block. Both being set causes a deployment error.
+  #
+  # ingress:
+  #   annotations: {}
+  #   className: ""
+  #   hosts: []
+  #   # - host: myapp.example.com
+  #   #   paths:
+  #   #   - path: /
+  #   #     pathType: ImplementationSpecific
+  #   tls: []
+  #   # - hosts:
+  #   #   - myapp.example.com
+  #   #   secretName: myapp-tls
+  #
+  # gateway:
+  #   hosts: []
+  #   # - myapp.example.com
+  #   name: ""         # defaults to <release-name>-gateway in the template
+  #   namespace: ""    # defaults to same namespace as this release
+  #   rules:
+  #   - matches:
+  #     - path:
+  #         type: PathPrefix
+  #         value: /
+  #     filters: []
+  #   sectionName: ""  # optional: targets a specific listener on the Gateway
+
+  inbound:
+    allowSameNamespace: false  # allow all pods in the same namespace to reach this service
+    cidrs: []
+    # - cidr: 10.0.0.0/24        # port omitted: allow all ports from this CIDR
+    # - cidr: 10.0.0.0/24
+    #   port: 8080                # restrict to this port only
+    fromRouter:
+      # NP rule allowing the routing infrastructure (ingress controller or gateway
+      # data plane) to reach this service. Required on default-deny clusters when
+      # network.ingress or network.gateway is configured; has no effect when both fields are empty.
+      namespace: ""
+      podLabels: {}
+      # app.kubernetes.io/name: traefik
+    pods: []
+    # - namespace: kube-backup    # labels omitted: allow any pod in this namespace
+    # - namespace: monitoring
+    #   labels:                   # with labels: allow only matching pods
+    #     app.kubernetes.io/name: prometheus
+    # - namespace: monitoring
+    #   labels:
+    #     app.kubernetes.io/name: prometheus
+    #   port: 8080                # with port: restrict to this port only
+    #   protocol: TCP
+
+  outbound:
+    allowDns: false           # allow outbound DNS resolution (UDP/TCP 53) to any destination; required on default-deny clusters
+    allowSameNamespace: false  # allow this service to reach all pods in the same namespace
+    cidrs: []
+    # - cidr: 0.0.0.0/0          # port omitted: allow all ports to this CIDR
+    #   except:
+    #   - 10.0.0.0/8
+    #   - 192.168.0.0/16
+    # - cidr: 0.0.0.0/0
+    #   port: 443                 # restrict to this port only
+    #   except:
+    #   - 10.0.0.0/8
+    #   - 192.168.0.0/16
+    # - cidr: 192.168.0.0/24
+    #   port: 6443
+    pods: []
+    # - namespace: postgres       # labels omitted: allow to any pod in this namespace
+    # - namespace: postgres
+    #   labels:                   # with labels: allow only matching pods
+    #     app.kubernetes.io/name: postgres
+    # - namespace: postgres
+    #   labels:
+    #     app.kubernetes.io/name: postgres
+    #   port: 5432                # with port: restrict to this port only
+    #   protocol: TCP
 
 nodeSelector: {}
 
@@ -142,8 +180,7 @@ securityContext: {}
 
 service:
   type: ClusterIP
-  port: 80
-  portName: http
+  # port: 80  # defaults to container.port; set explicitly only when service and container ports must differ
 
 serviceAccount:
   # Specifies whether a service account should be created

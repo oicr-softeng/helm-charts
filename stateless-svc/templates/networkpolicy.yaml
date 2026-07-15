@@ -1,6 +1,8 @@
-{{- $hasIngress := or .Values.ingress.allowSameNamespace .Values.ingress.pods .Values.ingress.cidrs -}}
-{{- $hasEgress := or .Values.egress.allowSameNamespace .Values.egress.pods .Values.egress.cidrs -}}
-{{- if or $hasIngress $hasEgress -}}
+{{- $inbound := .Values.network.inbound -}}
+{{- $outbound := .Values.network.outbound -}}
+{{- $hasInbound := or $inbound.allowSameNamespace $inbound.pods $inbound.cidrs $inbound.fromRouter.namespace -}}
+{{- $hasOutbound := or $outbound.allowSameNamespace $outbound.pods $outbound.cidrs $outbound.allowDns -}}
+{{- if or $hasInbound $hasOutbound -}}
 {{ $namespace := .Release.Namespace }}
 ---
 apiVersion: networking.k8s.io/v1
@@ -21,75 +23,108 @@ spec:
 
   policyTypes:
     - Ingress
-    {{- if $hasEgress }}
-    # Egress is only restricted when explicit egress rules are configured.
-    # Without any egress configuration, all outbound traffic is unrestricted.
+    {{- if $hasOutbound }}
+    # Egress is only restricted when explicit outbound rules are configured.
+    # Without any outbound configuration, all egress traffic is unrestricted.
     - Egress
     {{- end }}
 
   ingress:
-    {{- if .Values.ingress.allowSameNamespace }}
+    {{- if $inbound.allowSameNamespace }}
     # Allow all pods within the same namespace to reach this service.
     - from:
         - podSelector: {}
     {{- end }}
 
-    {{- range $rule := index .Values "ingress" "cidrs" }}
-    - from:
-        - ipBlock:
-            cidr: {{ index $rule.host }}
-      ports:
-        - port: {{ index $rule.port }}
-    {{- end }}
-
-    {{- range $rule := index .Values "ingress" "pods" }}
+    {{- if $inbound.fromRouter.namespace }}
     - from:
         - namespaceSelector:
             matchLabels:
-              kubernetes.io/metadata.name: {{ index $rule.namespace }}
+              kubernetes.io/metadata.name: {{ $inbound.fromRouter.namespace }}
           podSelector:
             matchLabels:
-              {{- range $k, $v := $rule.labels }}
-              {{- range $kk, $vv := $v }}
-              {{ $kk }}: {{ $vv }}
-              {{- end }}
-              {{- end }}
-      ports:
-        - port: {{ index $rule.port }}
-          protocol: {{ index $rule.protocol }}
+              {{- toYaml $inbound.fromRouter.podLabels | nindent 14 }}
     {{- end }}
 
-  {{- if $hasEgress }}
+    {{- range $rule := $inbound.cidrs }}
+    - from:
+        - ipBlock:
+            cidr: {{ $rule.cidr }}
+      {{- if $rule.port }}
+      ports:
+        - port: {{ $rule.port }}
+      {{- end }}
+    {{- end }}
+
+    {{- range $rule := $inbound.pods }}
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ $rule.namespace }}
+          {{- if $rule.labels }}
+          podSelector:
+            matchLabels:
+              {{- toYaml $rule.labels | nindent 14 }}
+          {{- end }}
+      {{- if $rule.port }}
+      ports:
+        - port: {{ $rule.port }}
+          {{- if $rule.protocol }}
+          protocol: {{ $rule.protocol }}
+          {{- end }}
+      {{- end }}
+    {{- end }}
+
+  {{- if $hasOutbound }}
   egress:
-    {{- if .Values.egress.allowSameNamespace }}
+    {{- if $outbound.allowSameNamespace }}
     # Allow this service to reach all pods within the same namespace.
     - to:
         - podSelector: {}
     {{- end }}
 
-    {{- range $rule := index .Values "egress" "pods" }}
+    {{- if $outbound.allowDns }}
+    # Allow DNS resolution to any destination.
+    - ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    {{- end }}
+
+    {{- range $rule := $outbound.pods }}
     - to:
         - namespaceSelector:
             matchLabels:
-              kubernetes.io/metadata.name: {{ index $rule.namespace }}
+              kubernetes.io/metadata.name: {{ $rule.namespace }}
+          {{- if $rule.labels }}
           podSelector:
             matchLabels:
-              {{- range $k, $v := $rule.labels }}
-              {{- range $kk, $vv := $v }}
-              {{ $kk }}: {{ $vv }}
-              {{- end }}
-              {{- end }}
+              {{- toYaml $rule.labels | nindent 14 }}
+          {{- end }}
+      {{- if $rule.port }}
       ports:
-        - port: {{ index $rule.port }}
-          protocol: {{ index $rule.protocol }}
+        - port: {{ $rule.port }}
+          {{- if $rule.protocol }}
+          protocol: {{ $rule.protocol }}
+          {{- end }}
+      {{- end }}
     {{- end }}
 
-    {{- range $rule := index .Values "egress" "cidrs" }}
+    {{- range $rule := $outbound.cidrs }}
     - to:
         - ipBlock:
-            cidr: {{ index $rule.host }}
+            cidr: {{ $rule.cidr }}
+            {{- if $rule.except }}
+            except:
+              {{- range $rule.except }}
+              - {{ . }}
+              {{- end }}
+            {{- end }}
+      {{- if $rule.port }}
       ports:
-        - port: {{ index $rule.port }}
+        - port: {{ $rule.port }}
+      {{- end }}
     {{- end }}
   {{- end }}
 {{- end }}

@@ -1,17 +1,27 @@
-{{- if .Values.ingress.hosts }}
+{{- if .Values.network.ingress }}
 Application URL:
-{{- range $host := .Values.ingress.hosts }}
+{{- $tls := .Values.network.ingress.tls }}
+{{- range $host := .Values.network.ingress.hosts }}
   {{- range .paths }}
-  http{{ if $.Values.ingress.tls }}s{{ end }}://{{ $host.host }}{{ .path }}
+  http{{ if $tls }}s{{ end }}://{{ $host.host }}{{ .path }}
   {{- end }}
+{{- end }}
+{{- else if .Values.network.gateway }}
+Application hostnames (TLS terminated at the Gateway):
+{{- if .Values.network.gateway.hosts }}
+{{- range .Values.network.gateway.hosts }}
+  https://{{ . }}
+{{- end }}
+{{- else }}
+  (no hostnames configured — HTTPRoute matches all hostnames on the Gateway)
 {{- end }}
 {{- else if contains "NodePort" .Values.service.type }}
   export NODE_PORT=$(kubectl get --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[0].nodePort}" services {{ include "stateless-svc.fullname" . }})
   export NODE_IP=$(kubectl get nodes --namespace {{ .Release.Namespace }} -o jsonpath="{.items[0].status.addresses[0].address}")
   echo http://$NODE_IP:$NODE_PORT
 {{- else if contains "LoadBalancer" .Values.service.type }}
-     NOTE: It may take a few minutes for the LoadBalancer IP to be available.
-           You can watch the status of by running 'kubectl get --namespace {{ .Release.Namespace }} svc -w {{ include "stateless-svc.fullname" . }}'
+  NOTE: It may take a few minutes for the LoadBalancer IP to be available.
+        You can watch the status by running 'kubectl get --namespace {{ .Release.Namespace }} svc -w {{ include "stateless-svc.fullname" . }}'
   export SERVICE_IP=$(kubectl get svc --namespace {{ .Release.Namespace }} {{ include "stateless-svc.fullname" . }} --template "{{"{{ range (index .status.loadBalancer.ingress 0) }}{{.}}{{ end }}"}}")
   echo http://$SERVICE_IP:{{ .Values.service.port }}
 {{- else if contains "ClusterIP" .Values.service.type }}

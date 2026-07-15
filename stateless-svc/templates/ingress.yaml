@@ -1,6 +1,8 @@
-{{- if .Values.ingress.hosts -}}
+{{- if and .Values.network.ingress .Values.network.gateway -}}
+{{- fail "network.ingress and network.gateway cannot both be configured" -}}
+{{- end -}}
+{{- if .Values.network.ingress -}}
 {{- $fullName := include "stateless-svc.fullname" . -}}
-{{- $svcPort := .Values.service.port -}}
 {{- $svcPortName := .Values.service.portName -}}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -9,26 +11,26 @@ metadata:
   labels:
     {{- include "stateless-svc.labels" . | nindent 4 }}
     {{- include "stateless-svc.customLabels" . | nindent 4 }}
-  {{- with .Values.ingress.annotations }}
+  {{- with .Values.network.ingress.annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
-  {{- if and .Values.ingress.className (semverCompare ">=1.18-0" .Capabilities.KubeVersion.Version) }}
-  ingressClassName: {{ .Values.ingress.className }}
+  {{- if .Values.network.ingress.className }}
+  ingressClassName: {{ .Values.network.ingress.className }}
   {{- end }}
-  {{- if .Values.ingress.tls }}
+  {{- if .Values.network.ingress.tls }}
   tls:
-    {{- range .Values.ingress.tls }}
+    {{- range .Values.network.ingress.tls }}
     - hosts:
-      {{- range .hosts }}
+        {{- range .hosts }}
         - {{ . | quote }}
-      {{- end }}
+        {{- end }}
       secretName: {{ .secretName }}
     {{- end }}
   {{- end }}
   rules:
-    {{- range .Values.ingress.hosts }}
+    {{- range .Values.network.ingress.hosts }}
     - host: {{ .host | quote }}
       http:
         paths:
