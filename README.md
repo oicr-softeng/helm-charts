@@ -22,16 +22,20 @@ To add or update a chart: push changes to `main` and Jenkins handles the rest.
 
 ## Using a chart
 
-```shell
-# Install directly
-helm install <release-name> oci://ghcr.io/oicr-softeng/helm-charts/<chart-name> --version <version>
+**Helm CLI:**
 
-# Or pull first
-helm pull oci://ghcr.io/oicr-softeng/helm-charts/<chart-name> --version <version>
+```shell
+helm install <release-name> oci://ghcr.io/oicr-softeng/helm-charts/<chart-name> --version <version>
 ```
 
-Example:
+**Terraform (`hashicorp/helm` provider):**
 
-```shell
-helm install my-job oci://ghcr.io/oicr-softeng/helm-charts/cron-job --version 1.2.1
+```hcl
+resource "helm_release" "example" {
+  repository = "oci://ghcr.io/oicr-softeng/helm-charts"
+  chart      = "<chart-name>"
+  version    = "<version>"
+  namespace  = "<namespace>"
+  # ...
+}
 ```
