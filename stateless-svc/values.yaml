@@ -180,6 +180,7 @@ securityContext: {}
 
 service:
   type: ClusterIP
+  portName: service  # name assigned to the service port and container port; override only when an external resource must reference a specific name
   # port: 80  # defaults to container.port; set explicitly only when service and container ports must differ
 
 serviceAccount:
