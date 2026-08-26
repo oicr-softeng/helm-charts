@@ -74,7 +74,13 @@ network:
   #     - path:
   #         type: PathPrefix
   #         value: /
-  #     filters: []
+  #       headers: []      # optional: match on request headers
+  #       method: ""       # optional: match on HTTP method (GET, POST, ...)
+  #       queryParams: []  # optional: match on query parameters
+  #     filters: []        # optional: request/response header modifiers, redirects, etc.
+  #     timeouts:
+  #       request: ""        # optional: max time from request to response (e.g. "30s", "1800s")
+  #       backendRequest: "" # optional: max time waiting for backend; must be <= request timeout
   #   sectionName: ""  # optional: targets a specific listener on the Gateway
 
   inbound:

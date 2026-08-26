@@ -1,0 +1,138 @@
+suite: mountSecrets volume rendering
+templates:
+  - deployment.yaml
+tests:
+  - it: renders a secret volume from a string shorthand entry
+    set:
+      mountSecrets:
+        - my-secret
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: RELEASE-NAME-stateless-svc-my-secret
+            secret:
+              secretName: my-secret
+              defaultMode: 0644
+
+  - it: renders a secret volume using the entry name as secretName when no secret sub-key is given
+    set:
+      mountSecrets:
+        - name: vault-ca
+          path: /etc/vault-ca
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: RELEASE-NAME-stateless-svc-vault-ca
+            secret:
+              secretName: vault-ca
+              defaultMode: 0644
+
+  - it: renders a secret volume with defaultMode using the entry name as secretName
+    set:
+      mountSecrets:
+        - name: vault-ca
+          path: /etc/vault-ca
+          defaultMode: 0444
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: RELEASE-NAME-stateless-svc-vault-ca
+            secret:
+              secretName: vault-ca
+              defaultMode: 292
+
+  - it: renders a secret volume using an explicit secret.secretName when provided
+    set:
+      mountSecrets:
+        - name: vol-name
+          path: /mnt/vol
+          secret:
+            secretName: actual-secret
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: RELEASE-NAME-stateless-svc-vol-name
+            secret:
+              secretName: actual-secret
+              defaultMode: 0644
+
+  - it: renders a volumeMount at the specified path for a map entry
+    set:
+      mountSecrets:
+        - name: vault-ca
+          path: /etc/vault-ca
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: RELEASE-NAME-stateless-svc-vault-ca
+            mountPath: /etc/vault-ca
+
+  - it: derives the volumeMount path from /tmp/<name> when no path is given
+    set:
+      mountSecrets:
+        - name: my-secret
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: RELEASE-NAME-stateless-svc-my-secret
+            mountPath: /tmp/my-secret
+
+---
+suite: mountEmptyDirs volume rendering
+templates:
+  - deployment.yaml
+tests:
+  - it: uses the prefixed name for a non-shared emptyDir volume
+    set:
+      mountEmptyDirs:
+        - name: cache
+          path: /tmp/cache
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: RELEASE-NAME-stateless-svc-cache
+            emptyDir: {}
+
+  - it: uses the prefixed name for a non-shared emptyDir volumeMount
+    set:
+      mountEmptyDirs:
+        - name: cache
+          path: /tmp/cache
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: RELEASE-NAME-stateless-svc-cache
+            mountPath: /tmp/cache
+
+  - it: uses the unprefixed name for a shared emptyDir volume
+    set:
+      mountEmptyDirs:
+        - name: shared-cache
+          shared: true
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: shared-cache
+            emptyDir: {}
+
+  - it: uses the unprefixed name for a shared emptyDir volumeMount
+    set:
+      mountEmptyDirs:
+        - name: shared-cache
+          path: /tmp/shared-cache
+          shared: true
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: shared-cache
+            mountPath: /tmp/shared-cache

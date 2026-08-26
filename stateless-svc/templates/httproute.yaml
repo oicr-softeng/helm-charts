@@ -29,14 +29,14 @@ spec:
   rules:
     {{- range .Values.network.gateway.rules }}
     - matches:
-        {{- range .matches }}
-        - path:
-            type: {{ .path.type }}
-            value: {{ .path.value }}
-        {{- end }}
+        {{- toYaml .matches | nindent 8 }}
       {{- if .filters }}
       filters:
         {{- toYaml .filters | nindent 8 }}
+      {{- end }}
+      {{- if .timeouts }}
+      timeouts:
+        {{- toYaml .timeouts | nindent 8 }}
       {{- end }}
       backendRefs:
       - name: {{ $fullName }}

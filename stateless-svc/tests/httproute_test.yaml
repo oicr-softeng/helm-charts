@@ -1,0 +1,97 @@
+suite: HTTPRoute rendering
+templates:
+  - httproute.yaml
+tests:
+  - it: renders a basic path prefix rule
+    set:
+      network.gateway.name: public-gateway
+      network.gateway.namespace: envoy-gateway-system
+      network.gateway.hosts:
+        - myapp.example.com
+      network.gateway.rules:
+        - matches:
+            - path:
+                type: PathPrefix
+                value: /
+    asserts:
+      - isKind:
+          of: HTTPRoute
+      - equal:
+          path: spec.rules[0].matches[0].path.type
+          value: PathPrefix
+      - equal:
+          path: spec.rules[0].matches[0].path.value
+          value: /
+
+  - it: renders timeouts when set on a rule
+    set:
+      network.gateway.name: public-gateway
+      network.gateway.namespace: envoy-gateway-system
+      network.gateway.rules:
+        - matches:
+            - path:
+                type: PathPrefix
+                value: /
+          timeouts:
+            request: 1800s
+            backendRequest: 1800s
+    asserts:
+      - equal:
+          path: spec.rules[0].timeouts.request
+          value: 1800s
+      - equal:
+          path: spec.rules[0].timeouts.backendRequest
+          value: 1800s
+
+  - it: omits timeouts block when not set
+    set:
+      network.gateway.name: public-gateway
+      network.gateway.namespace: envoy-gateway-system
+      network.gateway.rules:
+        - matches:
+            - path:
+                type: PathPrefix
+                value: /
+    asserts:
+      - notExists:
+          path: spec.rules[0].timeouts
+
+  - it: renders header match criteria
+    set:
+      network.gateway.name: public-gateway
+      network.gateway.namespace: envoy-gateway-system
+      network.gateway.rules:
+        - matches:
+            - path:
+                type: PathPrefix
+                value: /api
+              headers:
+                - name: X-Api-Version
+                  value: v2
+    asserts:
+      - equal:
+          path: spec.rules[0].matches[0].headers[0].name
+          value: X-Api-Version
+      - equal:
+          path: spec.rules[0].matches[0].headers[0].value
+          value: v2
+
+  - it: renders method match criteria
+    set:
+      network.gateway.name: public-gateway
+      network.gateway.namespace: envoy-gateway-system
+      network.gateway.rules:
+        - matches:
+            - path:
+                type: PathPrefix
+                value: /
+              method: POST
+    asserts:
+      - equal:
+          path: spec.rules[0].matches[0].method
+          value: POST
+
+  - it: does not render when network.gateway is not set
+    asserts:
+      - hasDocuments:
+          count: 0

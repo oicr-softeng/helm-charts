@@ -35,7 +35,7 @@ Render container volumeMounts for given context (container or sidecar). Usage:
       {{- if $emptyDir.shared }}
         {{- $emptyDirVolName = $path -}}
       {{- else }}
-        {{- $emptyDirVolName := (printf "%s-%s" (include "stateless-svc.fullname" $root) $path) -}}
+        {{- $emptyDirVolName = (printf "%s-%s" (include "stateless-svc.fullname" $root) $path) -}}
       {{- end }}
 
       {{- $mountPath := $emptyDir.path | default (printf "/tmp/%s" $path) -}}
@@ -118,7 +118,7 @@ Render container volumeMounts for given context (container or sidecar). Usage:
           {{- if $sidecarEmptyDir.shared }}
             {{- $emptyDirVolName = $path -}}
           {{- else }}
-            {{- $emptyDirVolName := (printf "%s-%s"
+            {{- $emptyDirVolName = (printf "%s-%s"
               $sidecarFromValues.name
               ($sidecarEmptyDir.name | lower | replace "_" "-")
             ) -}}
@@ -147,7 +147,7 @@ Render container volumeMounts for given context (container or sidecar). Usage:
             ) -}}
             {{- $mountPath = ($sidecarSecretsVolume.path |
               default (printf "/tmp/%s"
-                ($sidecarSecretsVolume.secret.secretName | lower | replace "_" "-") |
+                (dig "secret" "secretName" "" $sidecarSecretsVolume | lower | replace "_" "-") |
                 default $path
               )
             ) -}}
@@ -269,7 +269,7 @@ Render container volumeMounts for given context (container or sidecar). Usage:
         {{- $emptyDirVolName = (printf "%s-%s"
           (include "stateless-svc.fullname" $root)
           $givenName
-        ) | nindent 4 -}}
+        ) -}}
       {{- end -}}
 
       {{- if not (hasKey $seen $emptyDirVolName) }}
@@ -290,17 +290,17 @@ Render container volumeMounts for given context (container or sidecar). Usage:
         ) -}}
         {{- $secretName = $secretsVolume -}}
       {{- else }}
-        {{- $secretsVolName := (printf "%s-%s"
+        {{- $secretsVolName = (printf "%s-%s"
           (include "stateless-svc.fullname" $root)
           ($secretsVolume.name | lower | replace "_" "-")
         ) -}}
-        {{- $secretName = $secretsVolume.secret.secretName | default $secretsVolume.name -}}
+        {{- $secretName = dig "secret" "secretName" $secretsVolume.name $secretsVolume -}}
         {{- $mode = ($secretsVolume.defaultMode | default "0644") -}}
       {{- end }}
 
       {{- if not (hasKey $seen $secretsVolName) }}
         {{- $_ := set $seen $secretsVolName true -}}
-        {{- include "stateless-svc.renderVolumes" (list $secretsVolName $secretName $mode) | nindent 4 }}
+        {{- include "renderVolumes.secret" (list $secretsVolName $secretName $mode) | nindent 4 }}
       {{- end }}
     {{- end }}
 
@@ -337,13 +337,13 @@ Render container volumeMounts for given context (container or sidecar). Usage:
             $sidecar.name
             ($sidecarSecretsVolume.name | lower | replace "_" "-")
           ) -}}
-          {{- $secretName = $sidecarSecretsVolume.secret.secretName | default $sidecarSecretsVolume.name -}}
+          {{- $secretName = dig "secret" "secretName" $sidecarSecretsVolume.name $sidecarSecretsVolume -}}
           {{- $mode = ($sidecarSecretsVolume.defaultMode | default "0644") -}}
         {{- end }}
 
         {{- if not (hasKey $seen $sidecarSecretsVolName) }}
           {{- $_ := set $seen $sidecarSecretsVolName true -}}
-          {{- include "stateless-svc.renderVolumes" (list $sidecarSecretsVolName $secretName $mode) | nindent 4 }}
+          {{- include "renderVolumes.secret" (list $sidecarSecretsVolName $secretName $mode) | nindent 4 }}
         {{- end }}
       {{- end }}
     {{- end }}

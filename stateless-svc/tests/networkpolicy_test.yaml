@@ -1,0 +1,43 @@
+suite: NetworkPolicy fromRouter rendering
+templates:
+  - networkpolicy.yaml
+tests:
+  - it: renders a fromRouter rule when namespace is set
+    set:
+      network.inbound.fromRouter.namespace: traefik-private
+      network.inbound.fromRouter.podLabels:
+        app.kubernetes.io/name: traefik
+    asserts:
+      - hasDocuments:
+          count: 1
+      - contains:
+          path: spec.ingress
+          content:
+            from:
+              - namespaceSelector:
+                  matchLabels:
+                    kubernetes.io/metadata.name: traefik-private
+                podSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: traefik
+
+  - it: does not render a fromRouter rule when fromRouter is null
+    set:
+      network.inbound.fromRouter: null
+      network.inbound.allowSameNamespace: true
+    asserts:
+      - hasDocuments:
+          count: 1
+      - lengthEqual:
+          path: spec.ingress
+          count: 1
+      - contains:
+          path: spec.ingress
+          content:
+            from:
+              - podSelector: {}
+
+  - it: does not render a NetworkPolicy when fromRouter namespace is empty and no other rules are set
+    asserts:
+      - hasDocuments:
+          count: 0

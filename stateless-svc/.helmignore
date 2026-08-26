@@ -21,3 +21,7 @@
 .idea/
 *.tmproj
 .vscode/
+
+# Collaboration and dev tooling
+.dev/
+tests/

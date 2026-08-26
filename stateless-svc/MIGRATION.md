@@ -1,5 +1,54 @@
 # stateless-svc migration guide
 
+## 1.6.1 to 1.6.2
+
+### Bug fixes (no values changes required)
+
+Four bugs fixed across `_volumes.tpl` and `networkpolicy.yaml`:
+
+- **Nil pointer on `mountSecrets` with `defaultMode`:** providing a `mountSecrets` (or sidecar `mountSecrets`) entry as a map with `defaultMode` (and no `secret.secretName` sub-key) caused a nil pointer panic at template render time. Affected both the main container and sidecar code paths. Fixed by using `dig` to safely traverse the optional `secret.secretName` field, falling back to the entry's `name` (same fix applied to the sidecar mount-path computation that derived the path from `secret.secretName`).
+- **Nil pointer on `network.inbound.fromRouter: null`:** explicitly nulling `fromRouter` in values caused a nil pointer panic when the NetworkPolicy template read `fromRouter.namespace`. Fixed by extracting `$fromRouter := $inbound.fromRouter | default dict` before any field access.
+- **Empty volume/mount names for non-shared emptyDirs:** scoping errors (`:=` instead of `=`) in three places meant the computed volume name was never assigned to the outer variable, producing empty strings in rendered `volumeMounts` and `volumes` blocks. Fixed in the main-container volumeMounts block, the sidecar volumeMounts block, and the volumes block (which also had a stray `| nindent 4` applied to the variable assignment itself, corrupting the name with leading whitespace).
+
+### New: `network.gateway.rules[].timeouts`
+
+HTTPRoute rules now support a `timeouts` block for controlling request and backend response durations:
+
+```yaml
+network:
+    gateway:
+        rules:
+            - matches:
+                  - path:
+                        type: PathPrefix
+                        value: /
+              timeouts:
+                  request: 1800s # max time from client request to response
+                  backendRequest: 1800s # max time waiting for the backend; must be <= request
+```
+
+Both fields are optional and accept Gateway API duration strings (e.g. `"30s"`, `"5m"`).
+
+### New: full match criteria in `network.gateway.rules[].matches`
+
+Rule matches previously only rendered the `path` field. They now pass through any valid HTTPRoute match field: `path`, `headers`, `method`, and `queryParams`.
+
+```yaml
+network:
+    gateway:
+        rules:
+            - matches:
+                  - path:
+                        type: PathPrefix
+                        value: /api
+                    method: POST
+                    headers:
+                        - name: X-Api-Version
+                          value: v2
+```
+
+---
+
 ## 1.6.0 to 1.6.1
 
 ### `service.portName`: service and container port name changed
