@@ -1,6 +1,7 @@
 {{- $inbound := .Values.network.inbound -}}
 {{- $outbound := .Values.network.outbound -}}
-{{- $hasInbound := or $inbound.allowSameNamespace $inbound.pods $inbound.cidrs $inbound.fromRouter.namespace -}}
+{{- $fromRouter := $inbound.fromRouter | default dict -}}
+{{- $hasInbound := or $inbound.allowSameNamespace $inbound.pods $inbound.cidrs $fromRouter.namespace -}}
 {{- $hasOutbound := or $outbound.allowSameNamespace $outbound.pods $outbound.cidrs $outbound.allowDns -}}
 {{- if or $hasInbound $hasOutbound -}}
 {{ $namespace := .Release.Namespace }}
@@ -36,14 +37,14 @@ spec:
         - podSelector: {}
     {{- end }}
 
-    {{- if $inbound.fromRouter.namespace }}
+    {{- if $fromRouter.namespace }}
     - from:
         - namespaceSelector:
             matchLabels:
-              kubernetes.io/metadata.name: {{ $inbound.fromRouter.namespace }}
+              kubernetes.io/metadata.name: {{ $fromRouter.namespace }}
           podSelector:
             matchLabels:
-              {{- toYaml $inbound.fromRouter.podLabels | nindent 14 }}
+              {{- toYaml $fromRouter.podLabels | nindent 14 }}
     {{- end }}
 
     {{- range $rule := $inbound.cidrs }}

@@ -5,6 +5,10 @@ Local setup, workflows, and conventions for the `helm-charts` repository.
 ## Prerequisites
 
 - [Helm](https://helm.sh/docs/intro/install/) v3.8+
+- [helm-unittest](https://github.com/helm-unittest/helm-unittest) plugin:
+  ```
+  helm plugin install https://github.com/helm-unittest/helm-unittest.git --verify=false
+  ```
 
 ## Repository structure
 
@@ -40,6 +44,16 @@ git add <chart-name>/
 git commit -m "add <chart-name> chart"
 git push
 ```
+
+## Unit tests
+
+Charts with a `tests/` directory use [helm-unittest](https://github.com/helm-unittest/helm-unittest). Run all suites for a chart:
+
+```shell
+helm unittest <chart-name>
+```
+
+Test files live in `<chart-name>/tests/*_test.yaml` and are excluded from the packaged chart via `.helmignore`. The `templates/tests/` directory is separate: it holds `helm test` pod templates that run against a live cluster.
 
 ## Local chart testing
 
