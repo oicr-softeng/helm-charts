@@ -11,9 +11,9 @@ kind: Kafka
 metadata:
   name: {{ $clusterName }}
   annotations:
+    strimzi.io/node-pools: enabled
     {{- if eq .Values.kafkaMode "kraft" }}
     strimzi.io/kraft: enabled
-    strimzi.io/node-pools: enabled
     {{- end }}
 spec:
   kafka:
