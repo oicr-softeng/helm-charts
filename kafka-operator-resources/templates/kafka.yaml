@@ -1,9 +1,22 @@
 {{ if (eq .Values.kafkaMode "kraft") }}
 {{ $clusterName := include "kafka-operator-resources.fullname" . }}
+
+{{- if .Capabilities.APIVersions.Has "kafka.strimzi.io/v1" }}
 apiVersion: kafka.strimzi.io/v1
+{{- else if .Capabilities.APIVersions.Has "kafka.strimzi.io/v1beta2" }}
+apiVersion: kafka.strimzi.io/v1beta2
+{{- else }}
+apiVersion: kafka.strimzi.io/v1beta1
+{{- end }}
 kind: Kafka
 metadata:
   name: {{ $clusterName }}
+  annotations:
+    {{- if eq .Values.kafkaMode "kraft" }}
+    strimzi.io/kraft: enabled
+    strimzi.io/node-pools: enabled
+    {{- end }}
+
 spec:
   kafka:
     version: {{ .Values.Kafka.spec.kafka.version }}
@@ -46,10 +59,10 @@ spec:
               advertisedPort:  {{ $.Values.Kafka.listeners.external.port }}
           {{- end }}
       {{- end }}
-  config:
-    {{- with .Values.Kafka.config }}
-    {{- toYaml . | nindent 4 }}
-    {{- end }}
+    config:
+      {{- with .Values.Kafka.config }}
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
   entityOperator:
     topicOperator: {}
     userOperator: {}
