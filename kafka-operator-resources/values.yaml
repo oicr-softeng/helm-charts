@@ -19,11 +19,11 @@ Kafka:
 
 kafkaBridge:
   enabled: false
-  replicas: 1
   networkPolicy:
     create: false
     egress: []
     ingress: []
+  replicas: 1
 
 KafkaNodePool:
   replicas: 3
