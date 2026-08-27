@@ -23,8 +23,7 @@ kafkaBridge:
     create: false
     egress: []
     ingress: []
-
-kafkaMode: kraft
+  replicas: 1
 
 KafkaNodePool:
   replicas: 3
