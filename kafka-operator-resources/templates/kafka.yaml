@@ -1,4 +1,3 @@
-{{ if (eq .Values.kafkaMode "kraft") }}
 {{ $clusterName := include "kafka-operator-resources.fullname" . }}
 {{- if .Capabilities.APIVersions.Has "kafka.strimzi.io/v1" }}
 apiVersion: kafka.strimzi.io/v1
@@ -12,9 +11,7 @@ metadata:
   name: {{ $clusterName }}
   annotations:
     strimzi.io/node-pools: enabled
-    {{- if eq .Values.kafkaMode "kraft" }}
     strimzi.io/kraft: enabled
-    {{- end }}
 spec:
   kafka:
     version: {{ .Values.Kafka.spec.kafka.version }}
@@ -64,5 +61,4 @@ spec:
   entityOperator:
     topicOperator: {}
     userOperator: {}
-{{- end }}
 
