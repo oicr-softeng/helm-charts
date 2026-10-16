@@ -34,6 +34,10 @@ Push chart source changes to `main`; Jenkins handles linting, packaging, and pub
 
 Jenkins will package and publish the chart to GHCR. The new version is available immediately after the pipeline completes.
 
+### Commit messages
+
+A commit that publishes a chart version starts its subject with the chart and the version, in the form `<chart-name>@<version>: <what changed for the people who deploy it>`. For example: `stateless-svc@1.6.3: default the Service port to 80 again`.
+
 ## Adding a new chart
 
 ```shell
@@ -41,7 +45,7 @@ helm create <chart-name>   # Scaffold chart source
 helm lint <chart-name>     # Validate locally before pushing
 # Set version in <chart-name>/Chart.yaml
 git add <chart-name>/
-git commit -m "add <chart-name> chart"
+git commit -m "<chart-name>@<version>: add chart"
 git push
 ```
 

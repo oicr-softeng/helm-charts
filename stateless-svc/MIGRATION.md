@@ -1,5 +1,20 @@
 # stateless-svc migration guide
 
+## 1.6.2 to 1.6.3
+
+### `service.port` defaults to `80` again, as before 1.6.0
+
+In 1.6.0 through 1.6.2, `service.port` fell back to `container.port` when it was not set. That tied a Service's address to whatever port the application happened to listen on, so an in-cluster URL without a port, such as `http://my-svc`, stopped working whenever the container did not listen on 80. Almost no application does.
+
+From 1.6.3, `service.port` defaults to `80`, as it did up to 1.5.x. The Service keeps reaching the container by port name, so `container.port` and the health probes are unaffected. Set `service.port` only when the Service must expose a different port. The HTTPRoute backend port follows `service.port`, and an Ingress refers to the port by name, so neither needs any change.
+
+**Affects only deployments on 1.6.0 to 1.6.2 that relied on the fallback.** If a deployment did not set `service.port`, its Service listened on `container.port` and its callers may name that port in their URLs, for example `http://my-svc:3000`. After the upgrade the Service listens on 80, so choose one:
+
+- Remove the port from the callers' URLs. This is the intended outcome.
+- Or keep the callers as they are, and set `service.port` to the port they use.
+
+Deployments that already set `service.port` explicitly are not affected. Deployments on 1.5.x or earlier already had the 80 default and need no change.
+
 ## 1.6.1 to 1.6.2
 
 ### Bug fixes (no values changes required)
@@ -172,6 +187,8 @@ network:
 ## Changed defaults
 
 ### `service.port` now defaults to `container.port`
+
+**Superseded in 1.6.3:** `service.port` defaults to `80` again. See 1.6.2 to 1.6.3 above.
 
 Previously `service.port` defaulted to `80`. It now defaults to `container.port` when not explicitly set, so setting `container.port` alone is sufficient for the common case where both ports match.
 

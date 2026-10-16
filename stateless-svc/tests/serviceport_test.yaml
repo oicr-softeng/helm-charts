@@ -1,0 +1,79 @@
+suite: Service port and container port
+templates:
+  - service.yaml
+  - httproute.yaml
+  - deployment.yaml
+tests:
+  - it: defaults the Service port to 80 whatever the container port is
+    template: service.yaml
+    set:
+      container.port: 3030
+    asserts:
+      - equal:
+          path: spec.ports[0].port
+          value: 80
+      - equal:
+          path: spec.ports[0].targetPort
+          value: service
+
+  - it: honours an explicit Service port
+    template: service.yaml
+    set:
+      container.port: 3030
+      service.port: 8081
+    asserts:
+      - equal:
+          path: spec.ports[0].port
+          value: 8081
+      - equal:
+          path: spec.ports[0].targetPort
+          value: service
+
+  - it: keeps the container port and the probes on the container port
+    template: deployment.yaml
+    set:
+      container.port: 3030
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].containerPort
+          value: 3030
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].name
+          value: service
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.port
+          value: 3030
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.port
+          value: 3030
+
+  - it: points the HTTPRoute backend at the Service port, which defaults to 80
+    template: httproute.yaml
+    set:
+      container.port: 3030
+      network.gateway.name: public-gateway
+      network.gateway.rules:
+        - matches:
+            - path:
+                type: PathPrefix
+                value: /
+    asserts:
+      - equal:
+          path: spec.rules[0].backendRefs[0].port
+          value: 80
+
+  - it: points the HTTPRoute backend at an explicit Service port
+    template: httproute.yaml
+    set:
+      container.port: 3030
+      service.port: 8081
+      network.gateway.name: public-gateway
+      network.gateway.rules:
+        - matches:
+            - path:
+                type: PathPrefix
+                value: /
+    asserts:
+      - equal:
+          path: spec.rules[0].backendRefs[0].port
+          value: 8081

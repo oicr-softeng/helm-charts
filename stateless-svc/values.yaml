@@ -186,8 +186,8 @@ securityContext: {}
 
 service:
   type: ClusterIP
+  port: 80  # the stable address other services call, such as http://my-svc; independent of container.port, which the Service reaches by port name
   portName: service  # name assigned to the service port and container port; override only when an external resource must reference a specific name
-  # port: 80  # defaults to container.port; set explicitly only when service and container ports must differ
 
 serviceAccount:
   # Specifies whether a service account should be created

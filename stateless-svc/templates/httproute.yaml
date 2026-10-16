@@ -40,6 +40,6 @@ spec:
       {{- end }}
       backendRefs:
       - name: {{ $fullName }}
-        port: {{ $.Values.service.port | default $.Values.container.port }}
+        port: {{ $.Values.service.port }}
     {{- end }}
 {{- end }}
