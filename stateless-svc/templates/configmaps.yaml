@@ -1,0 +1,15 @@
+{{- include "stateless-svc.validateConfigMaps" . }}
+{{- range $name, $entry := .Values.configMaps }}
+---
+apiVersion: v1
+kind: ConfigMap
+
+metadata:
+  name: {{ include "stateless-svc.fullname" $ }}-{{ $name }}
+
+  labels:
+    {{- include "stateless-svc.labels" $ | nindent 4 }}
+
+data:
+  {{- toYaml $entry.files | nindent 2 }}
+{{- end }}

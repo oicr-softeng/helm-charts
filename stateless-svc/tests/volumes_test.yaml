@@ -83,6 +83,100 @@ tests:
             name: RELEASE-NAME-stateless-svc-my-secret
             mountPath: /tmp/my-secret
 
+  - it: mounts only the keys listed in secret.items
+    set:
+      mountSecrets:
+        - name: server-tls
+          path: /etc/server-tls
+          secret:
+            secretName: server-tls-secret
+            items:
+              - key: ca.crt
+                path: ca.crt
+              - key: tls.crt
+                path: tls.crt
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: RELEASE-NAME-stateless-svc-server-tls
+            secret:
+              secretName: server-tls-secret
+              defaultMode: 0644
+              items:
+                - key: ca.crt
+                  path: ca.crt
+                - key: tls.crt
+                  path: tls.crt
+
+  - it: keeps each listed key's own file mode
+    set:
+      mountSecrets:
+        - name: database-ca
+          secret:
+            secretName: database-cluster-ca
+            items:
+              - key: ca.crt
+                mode: 0444
+                path: ca.crt
+    asserts:
+      - equal:
+          path: spec.template.spec.volumes[0].secret.items[0].mode
+          value: 292
+
+  - it: mounts every key when secret.items is an empty list
+    set:
+      mountSecrets:
+        - name: database-ca
+          secret:
+            secretName: database-cluster-ca
+            items: []
+    asserts:
+      - notExists:
+          path: spec.template.spec.volumes[0].secret.items
+
+  - it: mounts the selected keys as a directory, so a changed value reaches the running pod
+    set:
+      mountSecrets:
+        - name: database-ca
+          path: /etc/database-ca
+          secret:
+            secretName: database-cluster-ca
+            items:
+              - key: ca.crt
+                path: ca.crt
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].volumeMounts[0].mountPath
+          value: /etc/database-ca
+      - notExists:
+          path: spec.template.spec.containers[0].volumeMounts[0].subPath
+
+  - it: mounts only the listed keys for a sidecar
+    set:
+      sidecars:
+        - name: proxy
+          image: proxy:1.0.0
+          mountSecrets:
+            - name: database-ca
+              path: /etc/database-ca
+              secret:
+                secretName: database-cluster-ca
+                items:
+                  - key: ca.crt
+                    path: ca.crt
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: proxy-database-ca
+            secret:
+              secretName: database-cluster-ca
+              defaultMode: 0644
+              items:
+                - key: ca.crt
+                  path: ca.crt
+
 ---
 suite: mountEmptyDirs volume rendering
 templates:

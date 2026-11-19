@@ -1,0 +1,255 @@
+suite: configMaps rendering
+templates:
+  - configmaps.yaml
+tests:
+  - it: renders a ConfigMap named after the release and the entry, holding each file
+    set:
+      configMaps:
+        catalogues:
+          files:
+            auth.json: '{ "enabled": true }'
+            biosamples.json: '{ "index": "biosamples" }'
+          path: /app/configs
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-stateless-svc-catalogues
+      - equal:
+          path: data
+          value:
+            auth.json: '{ "enabled": true }'
+            biosamples.json: '{ "index": "biosamples" }'
+
+  - it: renders one ConfigMap per entry
+    set:
+      configMaps:
+        catalogues:
+          files:
+            auth.json: "{}"
+          path: /app/configs
+        theme:
+          files:
+            colours.css: "body {}"
+          path: /app/public/theme
+    asserts:
+      - hasDocuments:
+          count: 2
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-stateless-svc-catalogues
+        documentIndex: 0
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-stateless-svc-theme
+        documentIndex: 1
+
+  - it: keeps a file's content exactly, quotes and line breaks included
+    set:
+      configMaps:
+        catalogues:
+          files:
+            auth.json: |
+              {
+                "enabled": true,
+                "note": "it's \"quoted\": yes"
+              }
+          path: /app/configs
+    asserts:
+      - equal:
+          path: data["auth.json"]
+          value: |
+            {
+              "enabled": true,
+              "note": "it's \"quoted\": yes"
+            }
+
+  - it: renders no ConfigMap when configMaps is empty
+    asserts:
+      - hasDocuments:
+          count: 0
+
+---
+suite: configMaps mounting
+templates:
+  - deployment.yaml
+tests:
+  - it: mounts each entry's files read-only at its path
+    set:
+      configMaps:
+        catalogues:
+          files:
+            auth.json: "{}"
+          path: /app/configs
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: configmap-catalogues
+            configMap:
+              name: RELEASE-NAME-stateless-svc-catalogues
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: configmap-catalogues
+            mountPath: /app/configs
+            readOnly: true
+
+  - it: mounts two entries at their own paths
+    set:
+      configMaps:
+        catalogues:
+          files:
+            auth.json: "{}"
+          path: /app/configs
+        theme:
+          files:
+            colours.css: "body {}"
+          path: /app/public/theme
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: configmap-catalogues
+            mountPath: /app/configs
+            readOnly: true
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: configmap-theme
+            mountPath: /app/public/theme
+            readOnly: true
+
+  - it: hashes every entry's files and path into a pod annotation
+    set:
+      configMaps:
+        catalogues:
+          files:
+            auth.json: a
+          path: /app/configs
+    asserts:
+      - equal:
+          path: spec.template.metadata.annotations["checksum/configmaps"]
+          value: ab8b9c5129548692f3b50f947a2ee21b8284d0ed726ad360c5350d2e217e7f1a
+
+  - it: gives the pod annotation another value when a file changes, so the pods restart
+    set:
+      configMaps:
+        catalogues:
+          files:
+            auth.json: b
+          path: /app/configs
+    asserts:
+      - equal:
+          path: spec.template.metadata.annotations["checksum/configmaps"]
+          value: 2e45663d64f35fc33b6a747f6d67d9c5796edbf9dbfd42ee726337644300f4fc
+
+  - it: keeps podAnnotations beside the hash annotation
+    set:
+      configMaps:
+        catalogues:
+          files:
+            auth.json: a
+          path: /app/configs
+      podAnnotations:
+        example.org/team: softeng
+    asserts:
+      - equal:
+          path: spec.template.metadata.annotations["example.org/team"]
+          value: softeng
+      - exists:
+          path: spec.template.metadata.annotations["checksum/configmaps"]
+
+  - it: adds no annotation, volume or mount when configMaps is empty
+    asserts:
+      - notExists:
+          path: spec.template.metadata.annotations
+      - notExists:
+          path: spec.template.spec.volumes
+      - notExists:
+          path: spec.template.spec.containers[0].volumeMounts
+
+---
+suite: configMaps refusals
+templates:
+  - configmaps.yaml
+tests:
+  - it: refuses a path that is not absolute
+    set:
+      configMaps:
+        catalogues:
+          files:
+            auth.json: "{}"
+          path: app/configs
+    asserts:
+      - failedTemplate:
+          errorPattern: "configMaps.catalogues.path must be an absolute directory"
+
+  - it: refuses an entry without a path
+    set:
+      configMaps:
+        catalogues:
+          files:
+            auth.json: "{}"
+    asserts:
+      - failedTemplate:
+          errorPattern: "configMaps.catalogues.path must be an absolute directory"
+
+  - it: refuses two entries sharing a path
+    set:
+      configMaps:
+        catalogues:
+          files:
+            auth.json: "{}"
+          path: /app/configs
+        theme:
+          files:
+            colours.css: "body {}"
+          path: /app/configs
+    asserts:
+      - failedTemplate:
+          errorPattern: "configMaps.catalogues and configMaps.theme share the path /app/configs"
+
+  - it: refuses a file name a ConfigMap cannot hold
+    set:
+      configMaps:
+        catalogues:
+          files:
+            conf/auth.json: "{}"
+          path: /app/configs
+    asserts:
+      - failedTemplate:
+          errorPattern: "configMaps.catalogues.files: conf/auth.json is not a file name a ConfigMap can hold"
+
+  - it: refuses an entry with no files
+    set:
+      configMaps:
+        catalogues:
+          files: {}
+          path: /app/configs
+    asserts:
+      - failedTemplate:
+          errorPattern: "configMaps.catalogues lists no files"
+
+  - it: refuses a file whose content is not text
+    set:
+      configMaps:
+        catalogues:
+          files:
+            version: 2
+          path: /app/configs
+    asserts:
+      - failedTemplate:
+          errorPattern: "configMaps.catalogues.files.version must be text"
+
+  - it: refuses an entry name a ConfigMap cannot carry
+    set:
+      configMaps:
+        Catalogues_v2:
+          files:
+            auth.json: "{}"
+          path: /app/configs
+    asserts:
+      - failedTemplate:
+          errorPattern: "configMaps.Catalogues_v2: an entry's name uses lowercase letters, digits and '-'"

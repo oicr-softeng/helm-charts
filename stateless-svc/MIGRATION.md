@@ -1,5 +1,70 @@
 # stateless-svc migration guide
 
+## 1.6.3 to 1.7.0
+
+No values changes are required. A release that sets none of the new fields renders as on 1.6.3, but for the chart's version label.
+
+### New: `configMaps`, files from values mounted where you say
+
+Each entry names a ConfigMap, the directory its files go into, and the files themselves, one per key. Files for another directory go in another entry.
+
+```yaml
+configMaps:
+  catalogues:                     # rendered as the ConfigMap <fullname>-catalogues
+    path: /app/configs            # mounted here, read-only, in the main container
+    files:
+      auth.json: |
+        { "enabled": true }
+      biosamples.json: |
+        { "index": "biosamples" }
+  theme:
+    path: /app/public/theme
+    files:
+      colours.css: "body {}"
+```
+
+- **A changed file restarts the pods.** A pod annotation, `checksum/configmaps`, hashes every entry's files and path, so the pods read the new content at their next start.
+- **The mount replaces whatever the image had in that directory**, so point it at a directory holding nothing else the application needs.
+- **A ConfigMap holds at most 1 MiB in total.**
+- **Refused at render, naming the rule broken:** an entry name other than lowercase letters, digits and `-`, or longer than 53 characters; a path that isn't absolute; two entries sharing a path; an entry with no files; a file name holding anything but letters, digits, `-`, `_` and `.`, a subdirectory included; and content that isn't text, such as an unquoted number.
+
+Terraform can fill an entry's `files` from a directory in the repository, so that adding a file there is the only edit:
+
+```hcl
+yamlencode({ configMaps = { catalogues = {
+  path  = "/app/configs"
+  files = { for f in fileset("${path.module}/catalogues", "*.json") : f => file("${path.module}/catalogues/${f}") }
+} } })
+```
+
+### New: `mountSecrets[].secret.items`
+
+A `mountSecrets` entry, for the main container or a sidecar, can now mount only chosen keys of a secret. List them under `secret.items`, in the form a Kubernetes secret volume takes. Without `items`, every key is mounted, as before, and the rendered output is unchanged.
+
+```yaml
+mountSecrets:
+  - name: database-ca
+    path: /etc/database-ca
+    secret:
+      secretName: database-cluster-ca
+      items:
+        - key: ca.crt
+          path: ca.crt
+```
+
+Use it when a secret holds a key the pod must not have, such as a CA certificate kept beside the private key that signs with it. The mount stays a directory, so a changed value in the secret still reaches the running pod.
+
+Two cases to know about:
+
+- **A key listed in `items` that the secret doesn't hold stops the pod from starting,** since Kubernetes can't set up the volume.
+- **Two entries that resolve to the same volume name render one volume,** with the first entry's `items` and `defaultMode`.
+
+**Check before upgrading:** up to 1.6.3, the chart ignored everything under an entry's `secret:` key except `secretName`. A values file that already sets `secret.items` mounts only those keys from 1.7.0.
+
+### Fixed: two or more `createSecrets` entries
+
+Up to 1.6.3, two or more `createSecrets` entries rendered as one malformed manifest, so such a release could not be deployed. Each entry now renders as a Secret of its own. A release with one entry renders exactly as before.
+
 ## 1.6.2 to 1.6.3
 
 ### `service.port` defaults to `80` again, as before 1.6.0

@@ -25,6 +25,7 @@ Render container volumeMounts for given context (container or sidecar). Usage:
   {{if or
     (gt (len $vals.mountEmptyDirs) 0)
     (gt (len $vals.mountSecrets) 0)
+    (not (empty $vals.configMaps))
   }}
   volumeMounts:
     {{- /* top-level emptyDirs */ -}}
@@ -64,6 +65,11 @@ Render container volumeMounts for given context (container or sidecar). Usage:
       {{- end }}
 
       {{- include "renderMounts.volume" (list $secretsVolName $mountPath $readOnly) | nindent 4 }}
+    {{- end }}
+
+    {{- /* configMaps, each read-only at its own path */ -}}
+    {{- range $name, $entry := $vals.configMaps }}
+      {{- include "renderMounts.volume" (list (printf "configmap-%s" $name) $entry.path true) | nindent 4 }}
     {{- end }}
   {{- end }}
 {{- end }}
@@ -244,6 +250,16 @@ Render container volumeMounts for given context (container or sidecar). Usage:
   secret:
     secretName: {{ index . 1 }}
     defaultMode: {{ index . 2 }}
+    {{- with index . 3 }}
+    items:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+{{- end -}}
+
+{{- define "renderVolumes.configMap" -}}
+- name: {{ index . 0 }}
+  configMap:
+    name: {{ index . 1 }}
 {{- end -}}
 
 {{- define "stateless-svc.renderVolumes" -}}
@@ -255,6 +271,7 @@ Render container volumeMounts for given context (container or sidecar). Usage:
     (gt (len $vals.mountEmptyDirs) 0)
     (gt (len $vals.mountSecrets) 0)
     (gt (len $vals.sidecars) 0)
+    (not (empty $vals.configMaps))
   }}
   volumes:
     {{- $seen := dict -}}
@@ -282,6 +299,7 @@ Render container volumeMounts for given context (container or sidecar). Usage:
       {{- $secretsVolName := "" -}}
       {{- $secretName := "" -}}
       {{- $mode := "0644" -}}
+      {{- $items := list -}}
 
       {{- if kindIs "string" $secretsVolume }}
         {{- $secretsVolName = (printf "%s-%s"
@@ -296,12 +314,20 @@ Render container volumeMounts for given context (container or sidecar). Usage:
         ) -}}
         {{- $secretName = dig "secret" "secretName" $secretsVolume.name $secretsVolume -}}
         {{- $mode = ($secretsVolume.defaultMode | default "0644") -}}
+        {{- $items = dig "secret" "items" (list) $secretsVolume -}}
       {{- end }}
 
       {{- if not (hasKey $seen $secretsVolName) }}
         {{- $_ := set $seen $secretsVolName true -}}
-        {{- include "renderVolumes.secret" (list $secretsVolName $secretName $mode) | nindent 4 }}
+        {{- include "renderVolumes.secret" (list $secretsVolName $secretName $mode $items) | nindent 4 }}
       {{- end }}
+    {{- end }}
+
+    {{- range $name, $entry := $vals.configMaps }}
+      {{- include "renderVolumes.configMap" (list
+        (printf "configmap-%s" $name)
+        (printf "%s-%s" (include "stateless-svc.fullname" $root) $name)
+      ) | nindent 4 }}
     {{- end }}
 
     {{- range $si, $sidecar := $vals.sidecars }}
@@ -325,6 +351,7 @@ Render container volumeMounts for given context (container or sidecar). Usage:
         {{- $sidecarSecretsVolName := "" -}}
         {{- $secretName := "" -}}
         {{- $mode := "0644" -}}
+        {{- $items := list -}}
 
         {{- if kindIs "string" $sidecarSecretsVolume }}
           {{- $sidecarSecretsVolName = (printf "%s-%s"
@@ -339,11 +366,12 @@ Render container volumeMounts for given context (container or sidecar). Usage:
           ) -}}
           {{- $secretName = dig "secret" "secretName" $sidecarSecretsVolume.name $sidecarSecretsVolume -}}
           {{- $mode = ($sidecarSecretsVolume.defaultMode | default "0644") -}}
+          {{- $items = dig "secret" "items" (list) $sidecarSecretsVolume -}}
         {{- end }}
 
         {{- if not (hasKey $seen $sidecarSecretsVolName) }}
           {{- $_ := set $seen $sidecarSecretsVolName true -}}
-          {{- include "renderVolumes.secret" (list $sidecarSecretsVolName $secretName $mode) | nindent 4 }}
+          {{- include "renderVolumes.secret" (list $sidecarSecretsVolName $secretName $mode $items) | nindent 4 }}
         {{- end }}
       {{- end }}
     {{- end }}

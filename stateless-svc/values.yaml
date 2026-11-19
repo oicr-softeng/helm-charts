@@ -8,6 +8,13 @@ command: ""
 cmd: "" # turns into "args"
 entrypoint: "" # turns into "command" (and args if needed)
 
+configMaps: {}
+  # <name>:                  # rendered as the ConfigMap <fullname>-<name>
+  #   path: /app/configs     # the directory its files go into, mounted read-only
+  #   files:                 # one file per key, its content as text
+  #     auth.json: |
+  #       { "enabled": true }
+
 container:
   port: 3000
 
@@ -45,6 +52,11 @@ mountSecrets: []
   # - name: <secret name>
   #   path: <mount path>
   #   defaultMode: 0644
+  #   secret: (optional)
+  #     secretName: <secret name> (optional, when it differs from name)
+  #     items: (optional, mount only these keys; without it, every key is mounted)
+  #       - key: ca.crt
+  #         path: ca.crt
 
 nameOverride: ""
 

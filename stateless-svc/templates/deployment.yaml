@@ -16,9 +16,15 @@ spec:
 
   template:
     metadata:
-      {{- with .Values.podAnnotations }}
+      {{- if or .Values.podAnnotations .Values.configMaps }}
       annotations:
+        {{- /* A changed file or path changes the pod template, so the pods restart and read it. */}}
+        {{- if .Values.configMaps }}
+        checksum/configmaps: {{ toJson .Values.configMaps | sha256sum }}
+        {{- end }}
+        {{- with .Values.podAnnotations }}
         {{- toYaml . | nindent 8 }}
+        {{- end }}
       {{- end }}
 
       labels:
