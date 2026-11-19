@@ -103,11 +103,11 @@ network:
                         type: PathPrefix
                         value: /
               timeouts:
-                  request: 1800s # max time from client request to response
+                  request: 1800s # max time for the gateway to respond; when the clock starts depends on the gateway
                   backendRequest: 1800s # max time waiting for the backend; must be <= request
 ```
 
-Both fields are optional and accept Gateway API duration strings (e.g. `"30s"`, `"5m"`).
+Both fields are optional and accept Gateway API duration strings (e.g. `"30s"`, `"5m"`). What each gateway measures with them, and which gateways ignore them, is under "Timeouts and upload size" in the 1.5.x to 1.6.0 section below.
 
 ### New: full match criteria in `network.gateway.rules[].matches`
 
@@ -372,3 +372,45 @@ The Gateway name defaults to `<release-name>-gateway`. Override with `network.ga
 #### TLS with Gateway API
 
 TLS termination is configured on the Gateway listener, not in the chart. Remove any `cert-manager.io/cluster-issuer` annotation and `tls` block when migrating from `network.ingress` to `network.gateway`; configure the certificate on the Gateway resource instead.
+
+#### Timeouts and upload size: what the Ingress annotations become
+
+An Ingress controlled by ingress-nginx often carries annotations that size uploads and time requests, and an HTTPRoute has no annotations to carry them. So moving a service from `network.ingress` to `network.gateway` can change what it accepts unless each annotation is replaced on purpose:
+
+| Ingress annotation | What it does on ingress-nginx | With `network.gateway` |
+| --- | --- | --- |
+| `nginx.ingress.kubernetes.io/proxy-body-size` | Rejects a request whose body is larger, with 413. Without it, the limit is nginx's default of 1m. | No chart field. Neither gateway below limits body size by default, so every upload the annotation allowed still gets through, and so does anything larger. |
+| `nginx.ingress.kubernetes.io/proxy-read-timeout` | Closes the connection when the backend sends nothing for this long; it measures the gap between two reads, not the whole response. Default 60s. | `rules[].timeouts.request`, which bounds the whole response instead. Size it for the slowest complete response rather than copying the number. |
+| `nginx.ingress.kubernetes.io/proxy-send-timeout` | The same, for the gap between two writes of the request to the backend. Default 60s. | `rules[].timeouts.request` as well; how much of an upload it covers depends on the gateway, as below. |
+
+How each gateway treats the same route, from Envoy Gateway v1.8 and Traefik v3.6:
+
+| | Envoy Gateway v1.8 | Traefik v3.6 |
+| --- | --- | --- |
+| Request body size | No limit by default. A `BackendTrafficPolicy` with `requestBuffer.limit` sets one; it holds each whole request in memory before forwarding it, so it suits small bodies, not large uploads. | No limit by default. A `Middleware` with `buffering.maxRequestBodyBytes`, referenced from `rules[].filters`, sets one. |
+| `rules[].timeouts.request` | Starts once the whole upload has been received and ends when the response is complete, so a slow upload is never cut off by it. | Ignored: v3.6 does not read HTTPRoute timeouts. |
+| Time to receive the whole upload | Unlimited, unless a `ClientTrafficPolicy` sets `timeouts.http.requestReceivedTimeout`. | Bounded by the entrypoint's `transport.respondingTimeouts.readTimeout`, 60s by default, which covers the entire request including its body. It is set where Traefik is installed, not in the chart. |
+
+Policies such as `BackendTrafficPolicy`, `ClientTrafficPolicy` and Traefik's `Middleware` are not rendered by this chart, and some clusters reserve the Envoy Gateway ones for the platform team. Check with whoever runs the Gateway before relying on one.
+
+**When migrating a service that takes uploads:**
+
+1. Replace `proxy-read-timeout` and `proxy-send-timeout` with `rules[].timeouts.request`, set to the longest a complete response may take. On Traefik v3.6 that field has no effect, so a long upload depends on the entrypoint's `readTimeout` instead.
+2. Make the service itself refuse bodies over the size it supports. `proxy-body-size` did that at the edge, and with no gateway default to replace it, the application is the one place the limit holds whichever gateway is in front.
+3. Where a limit at the edge is still wanted, add it as a gateway policy, as in the table above. On Traefik, a Middleware in the release's namespace is referenced like this:
+
+```yaml
+network:
+    gateway:
+        rules:
+            - matches:
+                  - path:
+                        type: PathPrefix
+                        value: /
+              filters:
+                  - type: ExtensionRef
+                    extensionRef:
+                        group: traefik.io
+                        kind: Middleware
+                        name: limit-body-20m
+```
