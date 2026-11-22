@@ -108,6 +108,22 @@ spec:
             periodSeconds: {{ .Values.probes.readiness.periodSeconds }}
             failureThreshold: {{ .Values.probes.readiness.failureThreshold }}
 
+          {{- with .Values.probes.startup }}
+          {{- if not .path }}
+            {{- fail "probes.startup.path is required when probes.startup is set, such as /health/live" }}
+          {{- end }}
+
+          startupProbe:
+            httpGet:
+              path: {{ .path }}
+              port: {{ $.Values.container.port }}
+            {{- range $field := list "failureThreshold" "initialDelaySeconds" "periodSeconds" "timeoutSeconds" }}
+            {{- if hasKey $.Values.probes.startup $field }}
+            {{ $field }}: {{ index $.Values.probes.startup $field }}
+            {{- end }}
+            {{- end }}
+          {{- end }}
+
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
 

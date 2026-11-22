@@ -167,6 +167,13 @@ probes:
     timeoutSeconds: 2
     periodSeconds: 3
     failureThreshold: 2
+  startup: {}
+  # For a service that may take minutes to start listening. Kubernetes runs neither probe above
+  # until this one succeeds, so liveness can stay strict once the service is up. Left empty, no
+  # startup probe renders. Fields left out take Kubernetes' defaults.
+  #   path: /health/live          # required when startup is set
+  #   periodSeconds: 10
+  #   failureThreshold: 60        # with periodSeconds, the longest start allowed: here 10 minutes
 
 # choose rbac roles to enable
 rbac:

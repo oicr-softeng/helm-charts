@@ -1,5 +1,21 @@
 # stateless-svc migration guide
 
+## 1.7.0 to 1.7.1
+
+No values changes are required. A release that sets no `probes.startup` renders as on 1.7.0, but for the chart's version label.
+
+### New: `probes.startup`, for a service slow to start listening
+
+Kubernetes runs neither liveness nor readiness until the startup probe succeeds, so a slow start no longer needs a lenient liveness probe that would also be slow to restart a hung pod. `path` is required; the other fields take Kubernetes' defaults when left out.
+
+```yaml
+probes:
+  startup:
+    path: /ping
+    periodSeconds: 10
+    failureThreshold: 60   # with periodSeconds, the longest start allowed: 10 minutes
+```
+
 ## 1.6.3 to 1.7.0
 
 No values changes are required. A release that sets none of the new fields renders as on 1.6.3, but for the chart's version label.

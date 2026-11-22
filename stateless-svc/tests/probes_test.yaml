@@ -1,0 +1,57 @@
+suite: Startup probe
+templates:
+  - deployment.yaml
+tests:
+  - it: renders no startup probe when none is configured, as before 1.7.1
+    asserts:
+      - notExists:
+          path: spec.template.spec.containers[0].startupProbe
+      - exists:
+          path: spec.template.spec.containers[0].livenessProbe
+      - exists:
+          path: spec.template.spec.containers[0].readinessProbe
+
+  - it: holds liveness and readiness off until the startup path answers
+    set:
+      container.port: 5050
+      probes.startup:
+        path: /ping
+        periodSeconds: 10
+        failureThreshold: 60
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].startupProbe.httpGet.path
+          value: /ping
+      - equal:
+          path: spec.template.spec.containers[0].startupProbe.httpGet.port
+          value: 5050
+      - equal:
+          path: spec.template.spec.containers[0].startupProbe.periodSeconds
+          value: 10
+      - equal:
+          path: spec.template.spec.containers[0].startupProbe.failureThreshold
+          value: 60
+
+  - it: leaves a field Kubernetes defaults unset when the values leave it out
+    set:
+      probes.startup:
+        path: /ping
+    asserts:
+      - exists:
+          path: spec.template.spec.containers[0].startupProbe
+      - notExists:
+          path: spec.template.spec.containers[0].startupProbe.periodSeconds
+      - notExists:
+          path: spec.template.spec.containers[0].startupProbe.failureThreshold
+      - notExists:
+          path: spec.template.spec.containers[0].startupProbe.initialDelaySeconds
+      - notExists:
+          path: spec.template.spec.containers[0].startupProbe.timeoutSeconds
+
+  - it: refuses a startup probe with no path, rather than probing the root by accident
+    set:
+      probes.startup:
+        failureThreshold: 60
+    asserts:
+      - failedTemplate:
+          errorMessage: "probes.startup.path is required when probes.startup is set, such as /health/live"
